@@ -40,11 +40,20 @@ export default function ThermalReceipt({
 
       {/* Header */}
       <div className="text-center pb-3 border-b border-dashed border-slate-400">
-        <div className="text-xl">🦅</div>
-        <div className="font-bold text-sm tracking-wider uppercase mt-1">
+        <div className="w-10 h-10 mx-auto rounded-lg bg-white p-0.5 border border-slate-300 overflow-hidden mb-1">
+          <img
+            src="/images/eaglets-logo.jpg"
+            alt="Eaglets Schools Logo"
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <div className="font-baldwins font-bold text-sm tracking-wider uppercase mt-1">
           EAGLETS SCHOOLS
         </div>
-        <div className="text-[10px] text-slate-600 uppercase">
+        <div className="font-aster text-[9.5px] text-[#b3272c] font-semibold">
+          Rebirth Of Knowledge & Character
+        </div>
+        <div className="text-[10px] text-slate-600 uppercase mt-0.5">
           Main Boys Campus, Lahore
         </div>
         <div className="text-[10px] text-slate-500 mt-0.5">

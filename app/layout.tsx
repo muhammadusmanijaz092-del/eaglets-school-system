@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Domine, Plus_Jakarta_Sans } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 
 const domine = Domine({
@@ -12,6 +13,18 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
   variable: '--font-sans',
+})
+
+const baldwins = localFont({
+  src: '../public/fonts/SS_Baldwins_Serif.ttf',
+  variable: '--font-baldwins',
+  display: 'swap',
+})
+
+const aster = localFont({
+  src: '../public/fonts/New_Aster_LT_Std_Bold.otf',
+  variable: '--font-aster',
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
@@ -28,7 +41,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${domine.variable} ${plusJakartaSans.variable} h-full antialiased`}
+      className={`${domine.variable} ${plusJakartaSans.variable} ${baldwins.variable} ${aster.variable} h-full antialiased`}
     >
       <head>
         <link

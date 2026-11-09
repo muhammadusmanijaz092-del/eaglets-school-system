@@ -25,13 +25,17 @@ export default function LoginPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-8 flex flex-col gap-6">
         {/* Crest & Heading */}
         <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-full bg-[#122b54] flex items-center justify-center text-2xl text-white shadow-inner mb-3">
-            🦅
+          <div className="w-20 h-20 rounded-2xl bg-white p-1 flex items-center justify-center shadow-md border border-slate-200 mb-3 overflow-hidden">
+            <img
+              src="/images/eaglets-logo.jpg"
+              alt="Eaglets Schools Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
-          <h1 className="font-domine text-2xl font-bold tracking-tight text-[#001639]">
+          <h1 className="font-baldwins text-3xl font-bold tracking-wider text-[#001639]">
             EAGLETS SCHOOLS
           </h1>
-          <span className="text-[11px] font-bold text-[#b3272c] uppercase tracking-widest mt-0.5">
+          <span className="font-aster text-xs text-[#b3272c] tracking-wide mt-1">
             Rebirth Of Knowledge & Character
           </span>
           <p className="text-xs text-slate-500 mt-2">

@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'SS Baldwins Serif';
+  src: url('/fonts/SS_Baldwins_Serif.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'New Aster LT Std';
+  src: url('/fonts/New_Aster_LT_Std_Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+  font-display: swap;
+}
+
+.font-baldwins {
+  font-family: 'SS Baldwins Serif', var(--font-baldwins), Georgia, serif;
+}
+
+.font-aster {
+  font-family: 'New Aster LT Std', var(--font-aster), Georgia, serif;
+}
+
 @layer base {
   :root {
     --primary: #001639;

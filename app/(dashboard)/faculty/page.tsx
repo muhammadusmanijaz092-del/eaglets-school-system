@@ -608,14 +608,20 @@ export default function FacultyPage() {
         >
           <div className="printable-area bg-white p-6 rounded-xl border border-slate-200 text-xs text-slate-800 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">🦅</span>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-lg bg-white p-0.5 border border-slate-200 overflow-hidden shadow-2xs">
+                  <img
+                    src="/images/eaglets-logo.jpg"
+                    alt="Eaglets Schools Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
                 <div>
-                  <h3 className="font-domine font-bold text-sm text-[#001639] uppercase">
+                  <h3 className="font-baldwins font-bold text-sm text-[#001639] uppercase tracking-wider">
                     EAGLETS SCHOOLS
                   </h3>
-                  <span className="text-[10px] text-slate-500">
-                    Main Boys Campus, Lahore • Accounts & Payroll
+                  <span className="font-aster text-[10px] text-[#b3272c] font-semibold block">
+                    Rebirth Of Knowledge & Character
                   </span>
                 </div>
               </div>

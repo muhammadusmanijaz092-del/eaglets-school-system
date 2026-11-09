@@ -72,15 +72,19 @@ export default function ParentStudentPortalPage() {
       {/* Top Navbar */}
       <header className="h-16 bg-[#122b54] text-white px-4 sm:px-8 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl flex-shrink-0 border border-white/20">
-            🦅
+          <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center flex-shrink-0 border border-white/20 shadow-md overflow-hidden">
+            <img
+              src="/images/eaglets-logo.jpg"
+              alt="Eaglets Schools Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
-            <span className="font-domine font-bold text-base tracking-wide text-white block leading-tight">
+            <span className="font-baldwins font-bold text-base tracking-wider text-white block leading-tight">
               EAGLETS SCHOOLS
             </span>
-            <span className="text-[10px] text-[#7d93c2] uppercase tracking-wider font-semibold">
-              Parent & Student Access Portal
+            <span className="font-aster text-[11px] text-[#f5bc71] font-medium tracking-wide">
+              Rebirth Of Knowledge & Character
             </span>
           </div>
         </div>

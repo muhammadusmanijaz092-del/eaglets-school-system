@@ -101,14 +101,18 @@ export default function PrintableChallan({
 
             {/* School Crest & Heading */}
             <div className="flex items-center gap-2 mb-2.5">
-              <div className="w-8 h-8 rounded-full bg-[#122b54] flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-xs">
-                🦅
+              <div className="w-9 h-9 rounded-lg bg-white p-0.5 flex items-center justify-center flex-shrink-0 border border-slate-200 shadow-xs overflow-hidden">
+                <img
+                  src="/images/eaglets-logo.jpg"
+                  alt="Eaglets Schools Crest"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="flex flex-col">
-                <span className="font-domine font-bold text-xs tracking-wide text-[#001639] uppercase">
+                <span className="font-baldwins font-bold text-xs tracking-wider text-[#001639] uppercase">
                   EAGLETS SCHOOLS
                 </span>
-                <span className="text-[8px] text-[#b3272c] font-bold uppercase tracking-wider">
+                <span className="font-aster text-[8.5px] text-[#b3272c] font-bold tracking-wide">
                   Rebirth Of Knowledge & Character
                 </span>
               </div>

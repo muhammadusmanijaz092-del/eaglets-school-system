@@ -806,26 +806,71 @@ export default function StudentsPage() {
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Assigned Class & Section *
+                Academic Class / Grade *
               </label>
               <select
-                value={formData.class_name}
-                onChange={(e) =>
+                value={
+                  formData.class_name.includes(' - ')
+                    ? formData.class_name.split(' - ')[0]
+                    : formData.class_name
+                }
+                onChange={(e) => {
+                  const newClass = e.target.value
+                  const currentSection = formData.section || 'Science A (Rose)'
                   setFormData({
                     ...formData,
-                    class_name: e.target.value,
-                    section: e.target.value.split('- ')[1] || 'General',
+                    class_name: `${newClass} - ${currentSection}`,
                   })
-                }
+                }}
                 className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
               >
-                {INITIAL_CLASSES.map((c) => (
-                  <option key={c.id} value={`${c.name} - ${c.section}`}>
-                    {c.name} - {c.section} (PKR {c.monthly_tuition_pkr.toLocaleString()}
-                    /mo)
-                  </option>
-                ))}
+                <option value="Grade 10">Grade 10 (Matric Science / Arts)</option>
+                <option value="Grade 9">Grade 9 (Matric Science / Arts)</option>
+                <option value="Grade 8">Grade 8 (Middle / O-Levels Prep)</option>
+                <option value="Grade 7">Grade 7 (Middle Wing)</option>
+                <option value="Grade 6">Grade 6 (Middle Wing)</option>
+                <option value="Grade 5">Grade 5 (Primary Wing)</option>
+                <option value="Grade 4">Grade 4 (Primary Wing)</option>
+                <option value="Grade 3">Grade 3 (Primary Wing)</option>
+                <option value="Grade 2">Grade 2 (Junior Wing)</option>
+                <option value="Grade 1">Grade 1 (Junior Wing)</option>
+                <option value="Prep / KG">Prep / Kindergarten</option>
+                <option value="Nursery">Nursery</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Section Assigned *
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.section}
+                onChange={(e) => {
+                  const newSection = e.target.value
+                  const baseClass = formData.class_name.includes(' - ')
+                    ? formData.class_name.split(' - ')[0]
+                    : formData.class_name
+                  setFormData({
+                    ...formData,
+                    section: newSection,
+                    class_name: `${baseClass} - ${newSection}`,
+                  })
+                }}
+                placeholder="e.g. Science A (Rose)"
+                list="quick-section-options"
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
+              <datalist id="quick-section-options">
+                <option value="Science A (Rose)" />
+                <option value="Science B (Tulip)" />
+                <option value="Science (Jasmine)" />
+                <option value="Cambridge (Lily)" />
+                <option value="General (Daisy)" />
+                <option value="Section Bluebell" />
+                <option value="Section Iris" />
+              </datalist>
             </div>
 
             <div>
@@ -918,10 +963,15 @@ export default function StudentsPage() {
                 <span className="font-domine text-base font-bold text-[#001639]">
                   {selectedStudent.student_name}
                 </span>
-                <span className="text-slate-500 font-medium">
-                  {selectedStudent.class_name}
-                </span>
-                <span className="text-[#b3272c] font-bold mt-1">
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="px-2 py-0.5 rounded bg-blue-50 text-[#001639] border border-blue-200 font-bold text-[11px]">
+                    Class: {selectedStudent.class_name?.includes(' - ') ? selectedStudent.class_name.split(' - ')[0] : selectedStudent.class_name}
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-bold text-[11px]">
+                    Section: {selectedStudent.section || (selectedStudent.class_name?.includes(' - ') ? selectedStudent.class_name.split(' - ')[1] : 'Standard')}
+                  </span>
+                </div>
+                <span className="text-[#b3272c] font-bold mt-1 text-[11px]">
                   NADRA B-Form: {selectedStudent.b_form}
                 </span>
               </div>
@@ -1137,21 +1187,72 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Class & Wing
+                  Academic Class / Grade *
                 </label>
                 <select
-                  value={studentToEdit.class_name}
-                  onChange={(e) =>
-                    setStudentToEdit({ ...studentToEdit, class_name: e.target.value })
+                  value={
+                    (studentToEdit.class_name || '').includes(' - ')
+                      ? (studentToEdit.class_name || '').split(' - ')[0]
+                      : studentToEdit.class_name || 'Grade 10'
                   }
+                  onChange={(e) => {
+                    const newClass = e.target.value
+                    const currentSection = studentToEdit.section || 'Science A (Rose)'
+                    setStudentToEdit({
+                      ...studentToEdit,
+                      class_name: `${newClass} - ${currentSection}`,
+                    })
+                  }}
                   className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
                 >
-                  {INITIAL_CLASSES.map((c) => (
-                    <option key={c.id} value={`${c.name} - ${c.section}`}>
-                      {c.name} ({c.section}) - {c.wing}
-                    </option>
-                  ))}
+                  <option value="Grade 10">Grade 10 (Matric Science / Arts)</option>
+                  <option value="Grade 9">Grade 9 (Matric Science / Arts)</option>
+                  <option value="Grade 8">Grade 8 (Middle / O-Levels Prep)</option>
+                  <option value="Grade 7">Grade 7 (Middle Wing)</option>
+                  <option value="Grade 6">Grade 6 (Middle Wing)</option>
+                  <option value="Grade 5">Grade 5 (Primary Wing)</option>
+                  <option value="Grade 4">Grade 4 (Primary Wing)</option>
+                  <option value="Grade 3">Grade 3 (Primary Wing)</option>
+                  <option value="Grade 2">Grade 2 (Junior Wing)</option>
+                  <option value="Grade 1">Grade 1 (Junior Wing)</option>
+                  <option value="Prep / KG">Prep / Kindergarten</option>
+                  <option value="Nursery">Nursery</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Section Assigned *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={studentToEdit.section || ''}
+                  onChange={(e) => {
+                    const newSection = e.target.value
+                    const currentClass = studentToEdit.class_name || 'Grade 10'
+                    const baseClass = currentClass.includes(' - ')
+                      ? currentClass.split(' - ')[0]
+                      : currentClass
+                    setStudentToEdit({
+                      ...studentToEdit,
+                      section: newSection,
+                      class_name: `${baseClass} - ${newSection}`,
+                    })
+                  }}
+                  placeholder="e.g. Science A (Rose), Girls Daisy, Cambridge (Lily)"
+                  list="edit-section-options"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+                <datalist id="edit-section-options">
+                  <option value="Science A (Rose)" />
+                  <option value="Science B (Tulip)" />
+                  <option value="Science (Jasmine)" />
+                  <option value="Cambridge (Lily)" />
+                  <option value="General (Daisy)" />
+                  <option value="Section Bluebell" />
+                  <option value="Section Iris" />
+                </datalist>
               </div>
 
               <div>

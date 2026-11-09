@@ -41,14 +41,18 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       <div className="flex-shrink-0 p-5 border-b border-white/10">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl flex-shrink-0 border border-white/20 shadow-inner">
-              🦅
+            <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center flex-shrink-0 shadow-md border border-white/20 overflow-hidden">
+              <img
+                src="/images/eaglets-logo.jpg"
+                alt="Eaglets Schools Crest"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-domine text-lg font-bold tracking-wide leading-tight text-white truncate">
+              <span className="font-baldwins text-lg font-bold tracking-wider leading-tight text-white truncate">
                 EAGLETS SCHOOLS
               </span>
-              <span className="text-[10px] text-[#7d93c2] uppercase tracking-wider font-semibold truncate">
+              <span className="font-aster text-[10.5px] text-[#f5bc71] tracking-wide font-normal truncate">
                 Rebirth Of Knowledge & Character
               </span>
             </div>

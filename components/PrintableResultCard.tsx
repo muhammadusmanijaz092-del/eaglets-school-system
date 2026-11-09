@@ -83,15 +83,19 @@ export default function PrintableResultCard({
 
         {/* Institutional Header */}
         <div className="flex flex-col items-center text-center pb-5 mb-5 border-b border-slate-200 relative">
-          <div className="w-14 h-14 rounded-full bg-[#122b54] flex items-center justify-center text-white text-2xl mb-2 shadow-inner">
-            🦅
+          <div className="w-16 h-16 rounded-2xl bg-white p-1 flex items-center justify-center shadow-xs border border-slate-200 mb-2 overflow-hidden">
+            <img
+              src="/images/eaglets-logo.jpg"
+              alt="Eaglets Schools Crest"
+              className="w-full h-full object-contain"
+            />
           </div>
-          <h2 className="font-domine text-2xl sm:text-3xl font-bold tracking-tight text-[#001639]">
+          <h2 className="font-baldwins text-2xl sm:text-3xl font-bold tracking-wider text-[#001639]">
             EAGLETS SCHOOLS
           </h2>
           <div className="flex items-center gap-3 my-1.5 justify-center">
             <span className="h-0.5 w-10 bg-[#b3272c] rounded-full"></span>
-            <span className="text-xs sm:text-sm text-[#b3272c] font-bold uppercase tracking-widest">
+            <span className="font-aster text-xs sm:text-sm text-[#b3272c] tracking-wide">
               Rebirth Of Knowledge & Character
             </span>
             <span className="h-0.5 w-10 bg-[#b3272c] rounded-full"></span>
