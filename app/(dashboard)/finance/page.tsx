@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Modal from '@/components/Modal'
 import PrintableChallan from '@/components/PrintableChallan'
 import ThermalReceipt from '@/components/ThermalReceipt'
@@ -10,6 +10,7 @@ import {
   INITIAL_CLASSES,
 } from '@/lib/mock-data'
 import { FeeInvoiceItem } from '@/lib/supabase/types'
+import { createClient } from '@/lib/supabase/client'
 
 export default function FinancePage() {
   const [invoices, setInvoices] = useState<FeeInvoiceItem[]>(INITIAL_INVOICES)
