@@ -1,11 +1,31 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import * as XLSX from 'xlsx'
 import Modal from '@/components/Modal'
 import PrintableChallan from '@/components/PrintableChallan'
 import { INITIAL_STUDENTS, INITIAL_CLASSES, INITIAL_INVOICES } from '@/lib/mock-data'
 import { StudentItem } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
+
+interface ParsedImportRow {
+  index: number
+  full_name: string
+  father_name: string
+  b_form_number: string
+  gender: 'Male' | 'Female'
+  dob_yyyy_mm_dd: string
+  class_grade: string
+  section: string
+  parent_phone: string
+  address: string
+  previous_school: string
+  base_monthly_fee: string
+  discount_type: string
+  discount_amount: string
+  errors: string[]
+  isValid: boolean
+}
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<StudentItem[]>(INITIAL_STUDENTS)
@@ -19,6 +39,14 @@ export default function StudentsPage() {
   const [selectedStudent, setSelectedStudent] = useState<StudentItem | null>(null)
   const [studentToEdit, setStudentToEdit] = useState<StudentItem | null>(null)
   const [studentToDelete, setStudentToDelete] = useState<StudentItem | null>(null)
+
+  // Bulk Import State
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false)
+  const [importRows, setImportRows] = useState<ParsedImportRow[]>([])
+  const [importFileName, setImportFileName] = useState('')
+  const [bulkSuccessMessage, setBulkSuccessMessage] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // New Student Form State
   const [formData, setFormData] = useState({
@@ -106,6 +134,229 @@ export default function StudentsPage() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  // 1. Download Sample CSV Template
+  const handleDownloadSampleTemplate = () => {
+    const headers = [
+      'full_name',
+      'father_name',
+      'b_form_number',
+      'gender',
+      'dob_yyyy_mm_dd',
+      'class_grade',
+      'section',
+      'parent_phone',
+      'address',
+      'previous_school',
+      'base_monthly_fee',
+      'discount_type',
+      'discount_amount',
+    ]
+    const sampleRows = [
+      [
+        'Muhammad Hamza',
+        'Nadeem Akhtar',
+        '35202-8491021-3',
+        'Male',
+        '2010-06-15',
+        'Grade 10',
+        'Science A (Rose)',
+        '+923001234567',
+        'House 14-B Model Town, Lahore',
+        'Beaconhouse School System',
+        '14000',
+        'Merit',
+        '2000',
+      ],
+      [
+        'Ayesha Tariq',
+        'Tariq Mehmood',
+        '35201-4928172-2',
+        'Female',
+        '2011-04-20',
+        'Grade 9',
+        'Girls Daisy',
+        '03007654321',
+        'House 29-C DHA Phase 5, Lahore',
+        'Lahore Grammar School',
+        '14000',
+        'Kinship',
+        '3500',
+      ],
+      [
+        'Bilal Ali Shah',
+        'Syed Ali Shah',
+        '35202-9912831-7',
+        'Male',
+        '2010-11-08',
+        'Grade 10',
+        'Science B (Tulip)',
+        '+923214567890',
+        'Ferozepur Road, Lahore',
+        'Army Public School',
+        '14000',
+        'None',
+        '0',
+      ],
+    ]
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...sampleRows.map((r) => r.map((c) => `"${c}"`).join(','))].join('\n')
+
+    const encodedUri = encodeURI(csvContent)
+    const link = document.createElement('a')
+    link.setAttribute('href', encodedUri)
+    link.setAttribute('download', 'Eaglets_Bulk_Student_Admission_Template.csv')
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  // 2. Data Validation & Sanitization Engine
+  const bFormRegex = /^\d{5}-\d{7}-\d{1}$/
+  const phoneRegex = /^(\+92|03)\d{9,10}$/
+
+  const parseAndValidateData = (rawRows: Record<string, any>[]) => {
+    const parsed: ParsedImportRow[] = rawRows.map((row, idx) => {
+      const full_name = String(row.full_name || row['Full Name'] || row['full name'] || '').trim()
+      const father_name = String(row.father_name || row['Father Name'] || row['father name'] || '').trim()
+      const b_form_number = String(
+        row.b_form_number || row['B-Form'] || row['b_form'] || row['B Form Number'] || ''
+      ).trim()
+      const rawGender = String(row.gender || row['Gender'] || 'Male').trim()
+      const gender: 'Male' | 'Female' =
+        rawGender.toLowerCase() === 'female' || rawGender.toLowerCase() === 'f'
+          ? 'Female'
+          : 'Male'
+      const dob_yyyy_mm_dd = String(
+        row.dob_yyyy_mm_dd || row['dob'] || row['DOB'] || '2011-01-01'
+      ).trim()
+      const class_grade = String(
+        row.class_grade || row['Class'] || row['class'] || 'Grade 10'
+      ).trim()
+      const section = String(
+        row.section || row['Section'] || 'Science A (Rose)'
+      ).trim()
+      const parent_phone = String(
+        row.parent_phone || row['phone'] || row['contact_phone'] || row['Parent Phone'] || ''
+      ).trim()
+      const address = String(row.address || row['Address'] || 'Lahore, Pakistan').trim()
+      const previous_school = String(
+        row.previous_school || row['Previous School'] || ''
+      ).trim()
+      const base_monthly_fee = String(row.base_monthly_fee || '14000').trim()
+      const discount_type = String(row.discount_type || 'None').trim()
+      const discount_amount = String(row.discount_amount || '0').trim()
+
+      const errors: string[] = []
+      if (!full_name) errors.push('Student Full Name is required')
+      if (!father_name) errors.push('Father Name is required')
+      if (!b_form_number) {
+        errors.push('B-Form is required')
+      } else if (!bFormRegex.test(b_form_number)) {
+        errors.push('Invalid NADRA B-Form format (expected XXXXX-XXXXXXX-X)')
+      }
+      const cleanPhone = parent_phone.replace(/[\s-]/g, '')
+      if (!parent_phone) {
+        errors.push('Parent phone is required')
+      } else if (!phoneRegex.test(cleanPhone)) {
+        errors.push('Invalid Pakistani phone (must match +923XXXXXXXXX or 03XXXXXXXXX)')
+      }
+
+      return {
+        index: idx + 1,
+        full_name,
+        father_name,
+        b_form_number,
+        gender,
+        dob_yyyy_mm_dd,
+        class_grade,
+        section,
+        parent_phone,
+        address,
+        previous_school,
+        base_monthly_fee,
+        discount_type,
+        discount_amount,
+        errors,
+        isValid: errors.length === 0,
+      }
+    })
+    setImportRows(parsed)
+  }
+
+  // 3. File Parser (CSV & XLSX Drag & Drop)
+  const handleFileUpload = (file: File) => {
+    setImportFileName(file.name)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer)
+        const workbook = XLSX.read(data, { type: 'array' })
+        const firstSheetName = workbook.SheetNames[0]
+        const worksheet = workbook.Sheets[firstSheetName]
+        const rawJson = XLSX.utils.sheet_to_json<Record<string, any>>(worksheet)
+        parseAndValidateData(rawJson)
+      } catch (err) {
+        console.error('File parsing error:', err)
+        alert('Could not read the uploaded file. Please ensure it is a valid CSV or XLSX spreadsheet.')
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
+  // 4. Batch Commit Action
+  const handleCommitBulkImport = async () => {
+    const validRows = importRows.filter((r) => r.isValid)
+    if (validRows.length === 0) return
+
+    const newEnrolled: StudentItem[] = validRows.map((row, i) => {
+      const classNum = row.class_grade.includes('9') ? '09' : '10'
+      const rollNumber = `EAG-${classNum}-${String(students.length + 50 + i).padStart(3, '0')}`
+      const admissionNo = `ADM-2026-${String(students.length + 120 + i)}`
+
+      return {
+        id: `s-bulk-${Date.now()}-${i}`,
+        admission_no: admissionNo,
+        roll_no: rollNumber,
+        student_name: row.full_name,
+        b_form: row.b_form_number,
+        dob: row.dob_yyyy_mm_dd || '2011-01-01',
+        gender: row.gender,
+        father_name: row.father_name,
+        father_cnic: '35201-XXXXXXX-X',
+        contact_phone: row.parent_phone,
+        whatsapp_no: row.parent_phone,
+        address: row.address || 'Lahore, Pakistan',
+        class_name: `${row.class_grade} - ${row.section}`,
+        section: row.section,
+        previous_school: row.previous_school,
+        status: 'Active',
+        admission_date: new Date().toISOString().slice(0, 10),
+      }
+    })
+
+    setStudents([...newEnrolled, ...students])
+    setIsBulkModalOpen(false)
+    setImportRows([])
+    setImportFileName('')
+    setBulkSuccessMessage(
+      `🎉 ${newEnrolled.length} Students Successfully Enrolled into Academic Year 2026–2027 with Generated Roll Numbers & Admission Records!`
+    )
+    setTimeout(() => setBulkSuccessMessage(null), 8000)
+
+    // Sync to Supabase in background
+    const supabase = createClient()
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('students').insert(newEnrolled)
+        if (error) console.error('Supabase bulk insert error:', error)
+      } catch (err) {
+        console.error('Cloud bulk insert error:', err)
+      }
+    }
   }
 
   // Handle Create Student
@@ -268,6 +519,14 @@ export default function StudentsPage() {
           </button>
           <button
             type="button"
+            onClick={() => setIsBulkModalOpen(true)}
+            className="h-9 px-3.5 bg-[#122b54] hover:bg-[#001639] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[17px] text-[#f5bc71]">upload_file</span>
+            <span>Bulk Import Students</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setIsAddModalOpen(true)}
             className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
@@ -276,6 +535,25 @@ export default function StudentsPage() {
           </button>
         </div>
       </div>
+
+      {/* Bulk Success Banner */}
+      {bulkSuccessMessage && (
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 px-4 py-3 rounded-xl text-xs flex items-center justify-between shadow-xs animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5">
+            <span className="material-symbols-outlined text-emerald-600 text-[20px]">
+              check_circle
+            </span>
+            <span className="font-semibold">{bulkSuccessMessage}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBulkSuccessMessage(null)}
+            className="text-emerald-700 hover:text-emerald-950 font-bold px-2 py-0.5 rounded cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Filter Toolbar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
@@ -987,6 +1265,298 @@ export default function StudentsPage() {
           </div>
         </Modal>
       )}
+
+      {/* Bulk Student Admission Modal */}
+      <Modal
+        isOpen={isBulkModalOpen}
+        onClose={() => {
+          setIsBulkModalOpen(false)
+          setImportRows([])
+          setImportFileName('')
+        }}
+        title="Bulk Student Admission Engine & NADRA Verifier"
+        subtitle="Batch-onboard cohorts via CSV / Excel (.xlsx) with automated NADRA B-Form validation and roll-number generation."
+        maxWidth="5xl"
+      >
+        <div className="flex flex-col gap-4 text-xs">
+          {/* Top Bar with Guidelines & Template Download */}
+          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[#122b54] text-white flex items-center justify-center flex-shrink-0">
+                <span className="material-symbols-outlined text-[18px] text-[#f5bc71]">
+                  description
+                </span>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800">Standard Intake Roster Format</p>
+                <p className="text-[11px] text-slate-500">
+                  Includes mandatory NADRA B-Form (`XXXXX-XXXXXXX-X`), Parent Mobile (`+92...`), Class, and Concession columns.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleDownloadSampleTemplate}
+              className="px-3.5 py-1.5 bg-white border border-slate-200 text-[#001639] font-bold text-xs rounded-lg hover:bg-slate-100 flex items-center gap-1.5 shadow-2xs cursor-pointer flex-shrink-0"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#b3272c]">
+                file_download
+              </span>
+              <span>Download Sample CSV Template</span>
+            </button>
+          </div>
+
+          {/* File Dropzone */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault()
+              setIsDragging(true)
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault()
+              setIsDragging(false)
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFileUpload(e.dataTransfer.files[0])
+              }
+            }}
+            onClick={() => fileInputRef.current?.click()}
+            className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
+              isDragging
+                ? 'border-[#001639] bg-blue-50/50 scale-[0.99]'
+                : importFileName
+                ? 'border-emerald-300 bg-emerald-50/30'
+                : 'border-slate-300 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-400'
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFileUpload(e.target.files[0])
+                }
+              }}
+              className="hidden"
+            />
+
+            <div className="flex flex-col items-center justify-center gap-2">
+              <div
+                className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  importFileName ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[26px]">
+                  {importFileName ? 'task' : 'cloud_upload'}
+                </span>
+              </div>
+
+              {importFileName ? (
+                <div>
+                  <p className="font-bold text-slate-800 text-sm">{importFileName}</p>
+                  <p className="text-slate-500 text-[11px] mt-0.5">
+                    File uploaded & parsed. Click to upload a different sheet or drop a new file.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="font-bold text-slate-700 text-sm">
+                    Drag & Drop your .csv or .xlsx file here
+                  </p>
+                  <p className="text-slate-500 text-[11px] mt-0.5">
+                    or click to browse your computer files
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pre-Import Preview Grid */}
+          {importRows.length > 0 && (
+            <div className="flex flex-col gap-2.5">
+              {/* Validation Summary Bar */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-slate-100 border border-slate-200">
+                <div className="flex items-center gap-3">
+                  <span className="font-bold text-slate-800">
+                    Parsed Cohort: {importRows.length} Rows
+                  </span>
+                  <span className="text-slate-300">|</span>
+                  <span className="inline-flex items-center gap-1 font-semibold text-emerald-700 bg-emerald-100/70 px-2 py-0.5 rounded text-[11px]">
+                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                    {importRows.filter((r) => r.isValid).length} Ready for Enrollment
+                  </span>
+                  {importRows.filter((r) => !r.isValid).length > 0 && (
+                    <span className="inline-flex items-center gap-1 font-semibold text-red-700 bg-red-100/70 px-2 py-0.5 rounded text-[11px]">
+                      <span className="material-symbols-outlined text-[14px]">error</span>
+                      {importRows.filter((r) => !r.isValid).length} Flagged Errors
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImportRows([])
+                    setImportFileName('')
+                  }}
+                  className="text-xs text-slate-500 hover:text-slate-800 underline cursor-pointer"
+                >
+                  Clear Sheet
+                </button>
+              </div>
+
+              {/* Table */}
+              <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-lg shadow-inner">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold tracking-wider sticky top-0 border-b border-slate-200 z-10">
+                    <tr>
+                      <th className="py-2.5 px-3">#</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Student Name</th>
+                      <th className="py-2.5 px-3">Father Name</th>
+                      <th className="py-2.5 px-3">NADRA B-Form</th>
+                      <th className="py-2.5 px-3">Class & Section</th>
+                      <th className="py-2.5 px-3">Parent Phone</th>
+                      <th className="py-2.5 px-3">Concession</th>
+                      <th className="py-2.5 px-3">Validation Details</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {importRows.map((row) => (
+                      <tr
+                        key={row.index}
+                        className={
+                          row.isValid
+                            ? 'hover:bg-slate-50/80 transition-colors'
+                            : 'bg-red-50/40 hover:bg-red-50/70 transition-colors'
+                        }
+                      >
+                        <td className="py-2 px-3 font-mono text-slate-400 text-[11px]">
+                          {row.index}
+                        </td>
+                        <td className="py-2 px-3">
+                          {row.isValid ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                              <span className="material-symbols-outlined text-[12px]">check</span>
+                              Valid
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800">
+                              <span className="material-symbols-outlined text-[12px]">warning</span>
+                              Error ({row.errors.length})
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2 px-3 font-semibold text-slate-800">
+                          {row.full_name || <span className="text-red-500 italic">Missing</span>}
+                        </td>
+                        <td className="py-2 px-3 text-slate-600">
+                          {row.father_name || <span className="text-red-500 italic">Missing</span>}
+                        </td>
+                        <td className="py-2 px-3 font-mono">
+                          <span
+                            className={
+                              bFormRegex.test(row.b_form_number)
+                                ? 'text-slate-700'
+                                : 'text-red-600 font-bold bg-red-100 px-1 py-0.5 rounded'
+                            }
+                          >
+                            {row.b_form_number || 'Empty'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-slate-700">
+                          {row.class_grade} - {row.section}
+                        </td>
+                        <td className="py-2 px-3 font-mono">
+                          <span
+                            className={
+                              phoneRegex.test(row.parent_phone.replace(/[\s-]/g, ''))
+                                ? 'text-slate-700'
+                                : 'text-red-600 font-bold bg-red-100 px-1 py-0.5 rounded'
+                            }
+                          >
+                            {row.parent_phone || 'Empty'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3">
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-medium text-[10px]">
+                            {row.discount_type !== 'None'
+                              ? `${row.discount_type} (-${row.discount_amount})`
+                              : 'Standard'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3">
+                          {row.isValid ? (
+                            <span className="text-[11px] text-emerald-600 flex items-center gap-1 font-medium">
+                              <span className="material-symbols-outlined text-[14px]">verified</span>
+                              Ready to Enroll
+                            </span>
+                          ) : (
+                            <div className="flex flex-col gap-0.5">
+                              {row.errors.map((err, eIdx) => (
+                                <span
+                                  key={eIdx}
+                                  className="text-[10px] text-red-600 font-medium flex items-center gap-1"
+                                >
+                                  • {err}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Actions */}
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div className="text-xs text-slate-500">
+              {importRows.length > 0 && (
+                <span>
+                  Only valid rows will be committed. Invalid rows will be ignored.
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsBulkModalOpen(false)
+                  setImportRows([])
+                  setImportFileName('')
+                }}
+                className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 cursor-pointer font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCommitBulkImport}
+                disabled={importRows.filter((r) => r.isValid).length === 0}
+                className={`px-5 py-2 font-bold rounded-lg shadow-sm flex items-center gap-2 cursor-pointer transition-all ${
+                  importRows.filter((r) => r.isValid).length > 0
+                    ? 'bg-[#001639] hover:bg-[#122b54] text-white'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px] text-[#f5bc71]">
+                  group_add
+                </span>
+                <span>
+                  Enroll {importRows.filter((r) => r.isValid).length} Verified Students
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Modal>
 
       {/* Printable Challan Modal */}
       {selectedStudent && (

@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import Modal from '@/components/Modal'
 import { INITIAL_FACULTY } from '@/lib/mock-data'
 import { FacultyItem } from '@/lib/supabase/types'
+import { createClient } from '@/lib/supabase/client'
 
 export default function FacultyPage() {
   const [facultyList, setFacultyList] = useState<FacultyItem[]>(INITIAL_FACULTY)
@@ -13,18 +14,21 @@ export default function FacultyPage() {
   const [isSalarySlipModalOpen, setIsSalarySlipModalOpen] = useState(false)
   const [selectedStaff, setSelectedStaff] = useState<FacultyItem | null>(null)
   const [disbursedAll, setDisbursedAll] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
 
-  // Registration Form
+  // Registration Form State
   const [formData, setFormData] = useState({
     full_name: '',
     cnic: '',
     phone: '',
     email: '',
+    campus: 'Main Boys Campus, Lahore',
     qualification: '',
-    designation: '',
+    designation: 'Senior Secondary Teacher',
     department: 'Science',
     assigned_classes: 'Grade 10, Grade 9',
     assigned_subjects: 'Physics',
+    joining_date: '2026-09-01',
     basic_salary_pkr: 85000,
     allowances_pkr: 15000,
     payment_mode: 'Bank Transfer' as 'Cash' | 'Bank Transfer' | 'Raast / Mobile Wallet',
@@ -50,19 +54,35 @@ export default function FacultyPage() {
 
   const handleAddFaculty = (e: React.FormEvent) => {
     e.preventDefault()
+    setValidationError(null)
+
+    // Pakistani CNIC Format Validation: XXXXX-XXXXXXX-X (13 digits with hyphens)
+    const cnicRegex = /^\d{5}-\d{7}-\d{1}$/
+    if (!cnicRegex.test(formData.cnic.trim())) {
+      setValidationError('Invalid CNIC format. Expected standard Pakistani NADRA format: 35201-1234567-1')
+      return
+    }
+
+    // Pakistani Mobile Number Validation
+    const phoneRegex = /^(\+92|03)\d{2}[-\s]?\d{7}$/
+    if (!phoneRegex.test(formData.phone.trim().replace(/\s+/g, ''))) {
+      setValidationError('Invalid Contact Phone format. Expected valid Pakistani mobile: +92 300 1234567 or 03001234567')
+      return
+    }
+
     const newStaff: FacultyItem = {
       id: `f-${Date.now()}`,
       emp_id: `EAG-FAC-${String(facultyList.length + 106)}`,
       full_name: formData.full_name,
       cnic: formData.cnic,
       phone: formData.phone,
-      email: formData.email,
+      email: formData.email || `${formData.full_name.toLowerCase().replace(/\s+/g, '.')}@eaglets.edu.pk`,
       qualification: formData.qualification,
       designation: formData.designation,
       department: formData.department,
       assigned_classes: formData.assigned_classes.split(',').map((s) => s.trim()),
       assigned_subjects: formData.assigned_subjects.split(',').map((s) => s.trim()),
-      joining_date: new Date().toISOString().slice(0, 10),
+      joining_date: formData.joining_date || new Date().toISOString().slice(0, 10),
       basic_salary_pkr: Number(formData.basic_salary_pkr),
       allowances_pkr: Number(formData.allowances_pkr),
       payment_mode: formData.payment_mode,
@@ -73,6 +93,34 @@ export default function FacultyPage() {
 
     setFacultyList([newStaff, ...facultyList])
     setIsAddModalOpen(false)
+
+    // Sync to Supabase in background if connected
+    const supabase = createClient()
+    if (supabase) {
+      supabase.from('faculty').insert([newStaff]).then(({ error }) => {
+        if (error) console.error('Supabase faculty insert error:', error)
+      })
+    }
+
+    // Reset Form
+    setFormData({
+      full_name: '',
+      cnic: '',
+      phone: '',
+      email: '',
+      campus: 'Main Boys Campus, Lahore',
+      qualification: '',
+      designation: 'Senior Secondary Teacher',
+      department: 'Science',
+      assigned_classes: 'Grade 10, Grade 9',
+      assigned_subjects: 'Physics',
+      joining_date: new Date().toISOString().slice(0, 10),
+      basic_salary_pkr: 85000,
+      allowances_pkr: 15000,
+      payment_mode: 'Bank Transfer',
+      bank_name: 'Habib Bank Limited',
+      account_number: '',
+    })
   }
 
   const handleDisbursePayroll = () => {
@@ -318,12 +366,22 @@ export default function FacultyPage() {
       {/* New Faculty Modal */}
       <Modal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        title="Faculty & Staff Registration"
-        subtitle="Pakistan Labor Law & Institutional Appointment Dossier"
+        onClose={() => {
+          setIsAddModalOpen(false)
+          setValidationError(null)
+        }}
+        title="Faculty Member & Teacher Registration"
+        subtitle="Pakistan Labor Law & Institutional Appointment Dossier (SUPER_ADMIN & CAMPUS_ADMIN)"
         maxWidth="3xl"
       >
         <form onSubmit={handleAddFaculty} className="flex flex-col gap-4 text-xs">
+          {validationError && (
+            <div className="p-3 bg-red-50 border border-red-300 rounded-lg text-red-800 text-xs flex items-center gap-2">
+              <span className="material-symbols-outlined text-red-600 text-[18px]">error</span>
+              <span>{validationError}</span>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
@@ -353,11 +411,12 @@ export default function FacultyPage() {
                 placeholder="35201-XXXXXXX-X"
                 className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
               />
+              <span className="text-[10px] text-slate-400">NADRA Format: XXXXX-XXXXXXX-X</span>
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Mobile Number *
+                Contact Phone *
               </label>
               <input
                 type="text"
@@ -366,6 +425,35 @@ export default function FacultyPage() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="+92 300 1234567"
                 className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
+              <span className="text-[10px] text-slate-400">Format: +92 300 1234567 or 03001234567</span>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Assigned Campus *
+              </label>
+              <select
+                value={formData.campus}
+                onChange={(e) => setFormData({ ...formData, campus: e.target.value })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              >
+                <option value="Main Boys Campus, Lahore">Main Boys Campus, Lahore</option>
+                <option value="Girls Junior Campus">Girls Junior Campus</option>
+                <option value="Gulberg Model Wing">Gulberg Model Wing</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Date of Joining *
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.joining_date}
+                onChange={(e) => setFormData({ ...formData, joining_date: e.target.value })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
               />
             </div>
 
@@ -396,14 +484,14 @@ export default function FacultyPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, designation: e.target.value })
                 }
-                placeholder="e.g. Senior Subject Specialist"
+                placeholder="e.g. Senior Secondary Teacher"
                 className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
               />
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Department *
+                Department / Subject *
               </label>
               <select
                 value={formData.department}
@@ -416,13 +504,13 @@ export default function FacultyPage() {
                 <option value="Mathematics">Mathematics</option>
                 <option value="Humanities">Humanities & Languages</option>
                 <option value="Computer Science">Computer Science & Robotics</option>
-                <option value="Administration">Administration</option>
+                <option value="Administration">Administration & Accounts</option>
               </select>
             </div>
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Basic Monthly Salary (PKR) *
+                Base Monthly Salary (PKR) *
               </label>
               <input
                 type="number"

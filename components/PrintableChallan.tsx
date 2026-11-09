@@ -9,9 +9,13 @@ interface ChallanProps {
   bForm?: string
   className?: string
   tuitionFee?: number
+  concessionAmount?: number
+  discountType?: string
   labFund?: number
   examFund?: number
   devFund?: number
+  libraryFund?: number
+  arrearsAmount?: number
   lateFee?: number
   issueDate?: string
   dueDate?: string
@@ -25,15 +29,24 @@ export default function PrintableChallan({
   bForm = '35201-8491023-1',
   className = '10th Science (Section A - Rose)',
   tuitionFee = 14000,
+  concessionAmount = 3500,
+  discountType = 'Kinship Discount',
   labFund = 1500,
   examFund = 1000,
   devFund = 1000,
+  libraryFund = 500,
+  arrearsAmount = 0,
   lateFee = 500,
   issueDate = '01-Oct-2026',
   dueDate = '10-Oct-2026',
   expiryDate = '20-Oct-2026',
 }: ChallanProps) {
-  const totalWithinDueDate = tuitionFee + labFund + examFund + devFund
+  const baseTuition = tuitionFee
+  const scholarship = concessionAmount
+  const adjustedTuition = Math.max(0, baseTuition - scholarship)
+  const additionalCharges = labFund + examFund + devFund + libraryFund
+  const subtotal = adjustedTuition + additionalCharges
+  const totalWithinDueDate = subtotal + arrearsAmount
   const totalAfterDueDate = totalWithinDueDate + lateFee
 
   const copies = [
@@ -162,31 +175,55 @@ export default function PrintableChallan({
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   <tr>
-                    <td className="py-0.8 px-1.5">Monthly Tuition Fee</td>
+                    <td className="py-0.8 px-1.5">Base Monthly Tuition</td>
                     <td className="py-0.8 px-1.5 text-right font-medium">
-                      {tuitionFee.toLocaleString()}
+                      {baseTuition.toLocaleString()}
                     </td>
                   </tr>
+                  {scholarship > 0 && (
+                    <tr className="text-emerald-700 bg-emerald-50/50">
+                      <td className="py-0.8 px-1.5">Less: {discountType || 'Scholarship'}</td>
+                      <td className="py-0.8 px-1.5 text-right font-bold">
+                        - {scholarship.toLocaleString()}
+                      </td>
+                    </tr>
+                  )}
+                  {scholarship > 0 && (
+                    <tr className="bg-slate-50/70 font-semibold text-slate-700">
+                      <td className="py-0.8 px-1.5">Adjusted Tuition Fee</td>
+                      <td className="py-0.8 px-1.5 text-right font-mono">
+                        {adjustedTuition.toLocaleString()}
+                      </td>
+                    </tr>
+                  )}
                   <tr>
-                    <td className="py-0.8 px-1.5">Physics/Bio Lab Fund</td>
+                    <td className="py-0.8 px-1.5">Science Lab & Practical Charges</td>
                     <td className="py-0.8 px-1.5 text-right font-medium">
                       {labFund.toLocaleString()}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-0.8 px-1.5">Term Examination Fund</td>
+                    <td className="py-0.8 px-1.5">Term Examination & Gazette Fund</td>
                     <td className="py-0.8 px-1.5 text-right font-medium">
                       {examFund.toLocaleString()}
                     </td>
                   </tr>
                   <tr>
-                    <td className="py-0.8 px-1.5">Campus Development Fund</td>
+                    <td className="py-0.8 px-1.5">Development & Library Fund</td>
                     <td className="py-0.8 px-1.5 text-right font-medium">
-                      {devFund.toLocaleString()}
+                      {(devFund + libraryFund).toLocaleString()}
                     </td>
                   </tr>
-                  <tr className="bg-slate-100 text-[#001639] font-bold">
-                    <td className="py-1 px-1.5">Total (Within Due Date)</td>
+                  {arrearsAmount > 0 && (
+                    <tr className="text-[#b3272c] bg-rose-50/60 font-semibold">
+                      <td className="py-0.8 px-1.5">Prior Unpaid Arrears Carried Over</td>
+                      <td className="py-0.8 px-1.5 text-right font-bold">
+                        + {arrearsAmount.toLocaleString()}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="bg-[#122b54] text-white font-bold">
+                    <td className="py-1 px-1.5">Total Payable (Before 10th)</td>
                     <td className="py-1 px-1.5 text-right">
                       PKR {totalWithinDueDate.toLocaleString()}
                     </td>
@@ -198,7 +235,7 @@ export default function PrintableChallan({
                     </td>
                   </tr>
                   <tr className="bg-[#b3272c] text-white font-bold">
-                    <td className="py-1 px-1.5">Total (After Due Date)</td>
+                    <td className="py-1 px-1.5">Total Payable (After 10th)</td>
                     <td className="py-1 px-1.5 text-right">
                       PKR {totalAfterDueDate.toLocaleString()}
                     </td>

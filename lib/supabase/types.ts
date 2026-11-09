@@ -6,6 +6,22 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type AdminRole = 'SUPER_ADMIN' | 'CAMPUS_ADMIN' | 'ACCOUNTS_MANAGER' | 'EXAM_CONTROLLER'
+
+export interface AdminUser {
+  id: string
+  full_name: string
+  email: string
+  username: string
+  role: AdminRole
+  campus: string // 'Main Boys Campus' | 'Girls Junior Campus' | 'Gulberg Model Wing' | 'All Campuses'
+  is_active: boolean
+  two_factor_enabled: boolean
+  force_password_reset: boolean
+  last_login?: string
+  created_at: string
+}
+
 export interface ClassItem {
   id: string
   name: string
@@ -74,18 +90,24 @@ export interface FeeInvoiceItem {
   class_name?: string
   billing_month: string
   issue_date: string
-  due_date: string
+  due_date: string // e.g. 10th of billing month
   expiry_date: string
-  tuition_amount_pkr: number
+  tuition_amount_pkr: number // Base Tuition Fee
+  discount_type?: 'None' | 'Kinship' | 'Teacher Child' | 'Merit' | 'Orphan' | 'Need-based'
+  concession_amount_pkr: number // Scholarship_or_Discount_Amount
+  adjusted_tuition_pkr?: number // Tuition - Concession
   lab_amount_pkr: number
   exam_amount_pkr: number
   development_amount_pkr: number
-  concession_amount_pkr: number
-  arrears_amount_pkr: number
-  total_due_pkr: number
-  late_surcharge_pkr: number
-  total_after_due_date_pkr: number
+  library_amount_pkr?: number
+  additional_charges_pkr?: number // Lab + Exam + Dev + Library
+  arrears_amount_pkr: number // Prior Unpaid Arrears
+  total_before_due_date_pkr?: number // Subtotal + Prior Arrears
+  total_due_pkr: number // Total Payable Before 10th
+  late_surcharge_pkr: number // Surcharge applied if post-10th
+  total_after_due_date_pkr: number // Subtotal + Arrears + Surcharge
   paid_amount_pkr: number
+  net_balance_pkr?: number // Total Payable - Paid Amount
   status: 'Unpaid' | 'Paid' | 'Partial' | 'Overdue'
 }
 

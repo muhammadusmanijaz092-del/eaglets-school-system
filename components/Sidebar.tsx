@@ -13,6 +13,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard Overview', href: '/', icon: 'grid_view' },
+  { label: 'Super Admin Console', href: '/super-admin', icon: 'shield_person', badge: 'Root' },
   { label: 'Student Admissions & Profiles', href: '/students', icon: 'school' },
   { label: 'Faculty Hiring & Payroll', href: '/faculty', icon: 'badge' },
   { label: 'Fee & Finance (PKR Challans)', href: '/finance', icon: 'payments' },
