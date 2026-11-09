@@ -13,6 +13,7 @@ import {
   INITIAL_TIMETABLE,
 } from '@/lib/mock-data'
 import { StudentItem } from '@/lib/supabase/types'
+import { createClient } from '@/lib/supabase/client'
 
 export default function ParentStudentPortalPage() {
   const [searchKey, setSearchKey] = useState('EAG-10-042')
@@ -24,18 +25,41 @@ export default function ParentStudentPortalPage() {
   const [isResultModalOpen, setIsResultModalOpen] = useState(false)
 
   // Find Student by Roll No or B-Form
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
+    const query = searchKey.trim()
+    if (!query) return
+
+    // 1. Query live Supabase cloud database if configured
+    const supabase = createClient()
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('students')
+          .select('*')
+          .or(`roll_no.ilike.%${query}%,b_form.eq.${query},student_name.ilike.%${query}%`)
+          .limit(1)
+
+        if (!error && data && data.length > 0) {
+          setSelectedStudent(data[0] as StudentItem)
+          return
+        }
+      } catch (err) {
+        console.warn('Supabase search fallback:', err)
+      }
+    }
+
+    // 2. Offline fallback
     const found = INITIAL_STUDENTS.find(
       (s) =>
-        s.roll_no.toLowerCase() === searchKey.trim().toLowerCase() ||
-        s.b_form.replace(/[-]/g, '') === searchKey.trim().replace(/[-]/g, '') ||
-        s.student_name.toLowerCase().includes(searchKey.trim().toLowerCase())
+        s.roll_no.toLowerCase() === query.toLowerCase() ||
+        s.b_form.replace(/[-]/g, '') === query.replace(/[-]/g, '') ||
+        s.student_name.toLowerCase().includes(query.toLowerCase())
     )
     if (found) {
       setSelectedStudent(found)
     } else {
-      alert('Student not found. Please try "EAG-10-042" or "EAG-10-041".')
+      alert(`Student with Roll No / B-Form "${query}" was not found. Please try "EAG-10-042" or "EAG-10-041".`)
     }
   }
 
