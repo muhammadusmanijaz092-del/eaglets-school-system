@@ -22,25 +22,46 @@ const navItems: NavItem[] = [
   { label: 'Settings & Access Control', href: '/settings', icon: 'admin_panel_settings' },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-72 bg-[#122b54] text-white z-50 flex flex-col border-r border-slate-700/40 shadow-[0_1px_8px_rgba(0,0,0,0.12)] print:hidden overflow-hidden">
+    <aside
+      className={`fixed left-0 top-0 h-screen w-72 max-w-[85vw] bg-[#122b54] text-white z-50 flex flex-col border-r border-slate-700/40 shadow-2xl print:hidden overflow-hidden transition-transform duration-300 ease-in-out ${
+        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}
+    >
       {/* School Crest & Header (Fixed Top) */}
       <div className="flex-shrink-0 p-5 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl flex-shrink-0 border border-white/20 shadow-inner">
-            🦅
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl flex-shrink-0 border border-white/20 shadow-inner">
+              🦅
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="font-domine text-lg font-bold tracking-wide leading-tight text-white truncate">
+                EAGLETS SCHOOLS
+              </span>
+              <span className="text-[10px] text-[#7d93c2] uppercase tracking-wider font-semibold truncate">
+                Rebirth Of Knowledge & Character
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-domine text-lg font-bold tracking-wide leading-tight text-white truncate">
-              EAGLETS SCHOOLS
-            </span>
-            <span className="text-[10px] text-[#7d93c2] uppercase tracking-wider font-semibold truncate">
-              Rebirth Of Knowledge & Character
-            </span>
-          </div>
+
+          {/* Close button on mobile */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="lg:hidden p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 cursor-pointer flex-shrink-0"
+            aria-label="Close Navigation"
+          >
+            <span className="material-symbols-outlined text-[20px]">close</span>
+          </button>
         </div>
 
         <div className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-1.5">
@@ -76,6 +97,7 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={onClose}
               className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all text-xs font-medium ${
                 isActive
                   ? 'bg-white text-[#001639] font-bold shadow-sm border-l-4 border-[#b3272c]'
@@ -120,6 +142,7 @@ export default function Sidebar() {
 
         <Link
           href="/login"
+          onClick={onClose}
           className="w-full h-8 bg-white/5 hover:bg-[#b3272c] text-[#f5bc71] hover:text-white border border-white/10 hover:border-transparent rounded-lg flex items-center justify-center gap-1.5 font-semibold text-xs transition-colors cursor-pointer"
         >
           <span className="material-symbols-outlined text-[15px]">logout</span>

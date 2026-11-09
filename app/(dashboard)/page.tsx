@@ -30,9 +30,9 @@ export default function DashboardOverviewPage() {
   }
 
   return (
-    <div className="px-8 py-6 flex flex-col gap-6">
+    <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6 min-w-0">
       {/* Executive Welcome Bar */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs relative overflow-hidden">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-xl border border-slate-200/80 shadow-xs relative overflow-hidden">
         <div className="flex flex-col gap-1.5 z-10">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#b3272c]/10 text-[#b3272c] text-[11px] font-bold uppercase tracking-wider">

@@ -6,11 +6,12 @@ import { useRouter } from 'next/navigation'
 import { INITIAL_STUDENTS, INITIAL_FACULTY } from '@/lib/mock-data'
 
 interface TopBarProps {
+  onMenuToggle?: () => void
   onNewAdmission?: () => void
   onRecordFee?: () => void
 }
 
-export default function TopBar({ onNewAdmission, onRecordFee }: TopBarProps) {
+export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: TopBarProps) {
   const router = useRouter()
   const [selectedCampus, setSelectedCampus] = useState('Main Boys Campus, Lahore')
   const [isCommandOpen, setIsCommandOpen] = useState(false)
@@ -63,27 +64,46 @@ export default function TopBar({ onNewAdmission, onRecordFee }: TopBarProps) {
 
   return (
     <>
-      <header className="fixed top-0 left-72 right-0 h-16 bg-white/95 backdrop-blur-md z-40 border-b border-slate-200 shadow-[0_1px_4px_rgba(0,22,57,0.04)] flex items-center justify-between px-6 print:hidden">
-        {/* Search Trigger Bar */}
-        <div className="flex items-center gap-4 w-full max-w-md">
+      <header className="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-white/95 backdrop-blur-md z-40 border-b border-slate-200 shadow-[0_1px_4px_rgba(0,22,57,0.04)] flex items-center justify-between px-3 sm:px-6 print:hidden transition-all duration-300 gap-2 sm:gap-4">
+        {/* Left Side: Mobile Menu Button & Search */}
+        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 max-w-md">
+          {/* Mobile Hamburger Button */}
+          <button
+            type="button"
+            onClick={onMenuToggle}
+            className="lg:hidden p-1.5 sm:p-2 -ml-1 text-slate-700 hover:text-[#001639] hover:bg-slate-100 rounded-lg cursor-pointer flex-shrink-0"
+            aria-label="Toggle Navigation Menu"
+          >
+            <span className="material-symbols-outlined text-[24px]">menu</span>
+          </button>
+
+          {/* Mobile Crest Logo */}
+          <div className="lg:hidden flex items-center gap-1.5 flex-shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#122b54] text-white flex items-center justify-center text-sm shadow-sm font-bold border border-white/20">
+              🦅
+            </div>
+          </div>
+
+          {/* Search Trigger Bar */}
           <div
             onClick={() => setIsCommandOpen(true)}
-            className="relative w-full cursor-pointer group"
+            className="relative flex-1 min-w-0 cursor-pointer group"
           >
-            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] group-hover:text-[#001639] transition-colors">
+            <span className="material-symbols-outlined absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] group-hover:text-[#001639] transition-colors">
               search
             </span>
-            <div className="w-full h-9 pl-9 pr-14 bg-slate-50 text-slate-400 text-xs rounded-lg border border-slate-200 flex items-center group-hover:border-[#122b54] group-hover:bg-white transition-all shadow-2xs">
-              Search students, faculty, or jump to module...
+            <div className="w-full h-9 pl-8 sm:pl-9 pr-2 sm:pr-14 bg-slate-50 text-slate-400 text-xs rounded-lg border border-slate-200 flex items-center group-hover:border-[#122b54] group-hover:bg-white transition-all shadow-2xs truncate">
+              <span className="hidden sm:inline truncate">Search students, faculty, or jump to module...</span>
+              <span className="sm:hidden truncate">Search...</span>
             </div>
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600 text-[10px] font-mono border border-slate-300">
+            <span className="hidden sm:inline-block absolute right-2 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded bg-slate-200/70 text-slate-600 text-[10px] font-mono border border-slate-300">
               Ctrl+K
             </span>
           </div>
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {/* Live Date / PKR Banner */}
           <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs">
             <span className="material-symbols-outlined text-[15px] text-[#001639]">
@@ -94,8 +114,8 @@ export default function TopBar({ onNewAdmission, onRecordFee }: TopBarProps) {
             <span className="font-bold text-[#b3272c]">PKR Live Ledger</span>
           </div>
 
-          {/* Campus Dropdown */}
-          <div className="flex items-center gap-2">
+          {/* Campus Dropdown (Hidden on Small Screens) */}
+          <div className="hidden md:flex items-center gap-2">
             <select
               value={selectedCampus}
               onChange={(e) => setSelectedCampus(e.target.value)}
@@ -108,23 +128,25 @@ export default function TopBar({ onNewAdmission, onRecordFee }: TopBarProps) {
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {onNewAdmission ? (
               <button
                 type="button"
                 onClick={onNewAdmission}
-                className="h-9 px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
+                title="New Admission"
               >
-                <span className="material-symbols-outlined text-[17px]">person_add</span>
-                <span>+ New Admission</span>
+                <span className="material-symbols-outlined text-[16px] sm:text-[17px]">person_add</span>
+                <span className="hidden sm:inline">+ New Admission</span>
               </button>
             ) : (
               <Link
                 href="/students"
-                className="h-9 px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
+                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
+                title="New Admission"
               >
-                <span className="material-symbols-outlined text-[17px]">person_add</span>
-                <span>+ New Admission</span>
+                <span className="material-symbols-outlined text-[16px] sm:text-[17px]">person_add</span>
+                <span className="hidden sm:inline">+ New Admission</span>
               </Link>
             )}
 
@@ -132,18 +154,20 @@ export default function TopBar({ onNewAdmission, onRecordFee }: TopBarProps) {
               <button
                 type="button"
                 onClick={onRecordFee}
-                className="h-9 px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
+                title="Record Fee"
               >
-                <span className="material-symbols-outlined text-[17px]">receipt_long</span>
-                <span>+ Record Fee</span>
+                <span className="material-symbols-outlined text-[16px] sm:text-[17px]">receipt_long</span>
+                <span className="hidden sm:inline">+ Record Fee</span>
               </button>
             ) : (
               <Link
                 href="/finance"
-                className="h-9 px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs"
+                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
+                title="Record Fee"
               >
-                <span className="material-symbols-outlined text-[17px]">receipt_long</span>
-                <span>+ Record Fee</span>
+                <span className="material-symbols-outlined text-[16px] sm:text-[17px]">receipt_long</span>
+                <span className="hidden sm:inline">+ Record Fee</span>
               </Link>
             )}
           </div>
