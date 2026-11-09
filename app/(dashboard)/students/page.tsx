@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Modal from '@/components/Modal'
 import PrintableChallan from '@/components/PrintableChallan'
 import { INITIAL_STUDENTS, INITIAL_CLASSES, INITIAL_INVOICES } from '@/lib/mock-data'
 import { StudentItem } from '@/lib/supabase/types'
+import { createClient } from '@/lib/supabase/client'
 
 export default function StudentsPage() {
   const [students, setStudents] = useState<StudentItem[]>(INITIAL_STUDENTS)
@@ -30,6 +31,25 @@ export default function StudentsPage() {
     address: '',
     previous_school: '',
   })
+
+  // Load from Supabase if connected
+  useEffect(() => {
+    const supabase = createClient()
+    if (!supabase) return
+
+    const loadStudents = async () => {
+      try {
+        const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false })
+        if (!error && data && data.length > 0) {
+          setStudents(data as StudentItem[])
+        }
+      } catch (err) {
+        console.warn('Falling back to local data:', err)
+      }
+    }
+
+    loadStudents()
+  }, [])
 
   // Filtered Students
   const filteredStudents = students.filter((s) => {
@@ -112,6 +132,14 @@ export default function StudentsPage() {
 
     setStudents([newStudent, ...students])
     setIsAddModalOpen(false)
+
+    // Sync to Supabase in background if connected
+    const supabase = createClient()
+    if (supabase) {
+      supabase.from('students').insert([newStudent]).then(({ error }) => {
+        if (error) console.error('Supabase student insert error:', error)
+      })
+    }
     setFormData({
       student_name: '',
       b_form: '',

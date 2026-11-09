@@ -279,54 +279,100 @@ ALTER TABLE public.exam_date_sheets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exam_results ENABLE ROW LEVEL SECURITY;
 
 -- Allow read access for authenticated & anon service keys (School Intranet / Portal)
+DROP POLICY IF EXISTS "Allow public read classes" ON public.classes;
 CREATE POLICY "Allow public read classes" ON public.classes FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read faculty" ON public.faculty;
 CREATE POLICY "Allow public read faculty" ON public.faculty FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read students" ON public.students;
 CREATE POLICY "Allow public read students" ON public.students FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read fee_structures" ON public.fee_structures;
 CREATE POLICY "Allow public read fee_structures" ON public.fee_structures FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read fee_invoices" ON public.fee_invoices;
 CREATE POLICY "Allow public read fee_invoices" ON public.fee_invoices FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read fee_payments" ON public.fee_payments;
 CREATE POLICY "Allow public read fee_payments" ON public.fee_payments FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read attendance" ON public.attendance;
 CREATE POLICY "Allow public read attendance" ON public.attendance FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read syllabus" ON public.syllabus;
 CREATE POLICY "Allow public read syllabus" ON public.syllabus FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read daily_diaries" ON public.daily_diaries;
 CREATE POLICY "Allow public read daily_diaries" ON public.daily_diaries FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read timetables" ON public.timetables;
 CREATE POLICY "Allow public read timetables" ON public.timetables FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read examinations" ON public.examinations;
 CREATE POLICY "Allow public read examinations" ON public.examinations FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read exam_date_sheets" ON public.exam_date_sheets;
 CREATE POLICY "Allow public read exam_date_sheets" ON public.exam_date_sheets FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public read exam_results" ON public.exam_results;
 CREATE POLICY "Allow public read exam_results" ON public.exam_results FOR SELECT USING (true);
 
 -- Allow write for authorized service roles
+DROP POLICY IF EXISTS "Allow full access classes" ON public.classes;
 CREATE POLICY "Allow full access classes" ON public.classes FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access faculty" ON public.faculty;
 CREATE POLICY "Allow full access faculty" ON public.faculty FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access students" ON public.students;
 CREATE POLICY "Allow full access students" ON public.students FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access fee_invoices" ON public.fee_invoices;
 CREATE POLICY "Allow full access fee_invoices" ON public.fee_invoices FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access fee_payments" ON public.fee_payments;
 CREATE POLICY "Allow full access fee_payments" ON public.fee_payments FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access attendance" ON public.attendance;
 CREATE POLICY "Allow full access attendance" ON public.attendance FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access syllabus" ON public.syllabus;
 CREATE POLICY "Allow full access syllabus" ON public.syllabus FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access daily_diaries" ON public.daily_diaries;
 CREATE POLICY "Allow full access daily_diaries" ON public.daily_diaries FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access examinations" ON public.examinations;
 CREATE POLICY "Allow full access examinations" ON public.examinations FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow full access exam_results" ON public.exam_results;
 CREATE POLICY "Allow full access exam_results" ON public.exam_results FOR ALL USING (true);
 
 -- ==============================================================================
 -- 5. STORAGE BUCKET CREATION (Supabase Storage)
 -- ==============================================================================
-INSERT INTO storage.buckets (id, name, public)
-VALUES 
-    ('public-syllabus', 'public-syllabus', true),
-    ('private-student-docs', 'private-student-docs', false),
-    ('fee-slips', 'fee-slips', true)
-ON CONFLICT (id) DO NOTHING;
+DO $$
+BEGIN
+    INSERT INTO storage.buckets (id, name, public)
+    VALUES 
+        ('public-syllabus', 'public-syllabus', true),
+        ('private-student-docs', 'private-student-docs', false),
+        ('fee-slips', 'fee-slips', true)
+    ON CONFLICT (id) DO NOTHING;
 
--- Storage RLS
-CREATE POLICY "Public Syllabus Access"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'public-syllabus');
+    DROP POLICY IF EXISTS "Public Syllabus Access" ON storage.objects;
+    CREATE POLICY "Public Syllabus Access" ON storage.objects FOR SELECT USING (bucket_id = 'public-syllabus');
 
-CREATE POLICY "Public Fee Slips Access"
-ON storage.objects FOR SELECT
-USING (bucket_id = 'fee-slips');
+    DROP POLICY IF EXISTS "Public Fee Slips Access" ON storage.objects;
+    CREATE POLICY "Public Fee Slips Access" ON storage.objects FOR SELECT USING (bucket_id = 'fee-slips');
 
-CREATE POLICY "Allow Authenticated Uploads"
-ON storage.objects FOR INSERT
-WITH CHECK (bucket_id IN ('public-syllabus', 'private-student-docs', 'fee-slips'));
+    DROP POLICY IF EXISTS "Allow Authenticated Uploads" ON storage.objects;
+    CREATE POLICY "Allow Authenticated Uploads" ON storage.objects FOR INSERT WITH CHECK (bucket_id IN ('public-syllabus', 'private-student-docs', 'fee-slips'));
+EXCEPTION
+    WHEN OTHERS THEN
+        NULL;
+END $$;
 
 -- ==============================================================================
 -- 6. REALISTIC SAMPLE SEED DATA (PAKISTANI ACADEMIC SYSTEM)
@@ -354,25 +400,25 @@ ON CONFLICT (emp_id) DO NOTHING;
 -- Seed Students
 INSERT INTO public.students (id, admission_no, roll_no, student_name, b_form, dob, gender, father_name, father_cnic, contact_phone, whatsapp_no, address, class_id, section, previous_school, photo_url, status)
 VALUES
-    ('s1111111-1111-1111-1111-111111111111', 'ADM-2022-118', 'EAG-10-042', 'Muhammad Rayyan Butt', '35201-8491023-1', '2010-05-14', 'Male', 'Tariq Mehmood Butt', '35201-1928374-1', '+92 300 4581290', '+92 300 4581290', 'House 14-B, Canal View, Lahore', 'c1111111-1111-1111-1111-111111111111', 'Science A (Rose)', 'Lahore Grammar School', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', 'Active'),
-    ('s2222222-2222-2222-2222-222222222222', 'ADM-2022-119', 'EAG-10-041', 'Zainab Fatima', '35201-9988112-2', '2010-09-22', 'Female', 'Sheikh Yaseen Rafiq', '35201-8877221-3', '+92 321 9871234', '+92 321 9871234', 'House 88, Faisal Town, Lahore', 'c1111111-1111-1111-1111-111111111111', 'Science A (Rose)', 'Beaconhouse School System', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', 'Active'),
-    ('s3333333-3333-3333-3333-333333333333', 'ADM-2023-205', 'EAG-09-012', 'Hamza Mujtaba', '35201-4477112-3', '2011-02-18', 'Male', 'Mujtaba Hassan', '35201-3322119-9', '+92 333 4411998', '+92 333 4411998', 'Model Town Extension, Lahore', 'c2222222-2222-2222-2222-222222222222', 'Science (Jasmine)', 'Army Public School', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', 'Active'),
-    ('s4444444-4444-4444-4444-444444444444', 'ADM-2024-312', 'EAG-08-015', 'Ayesha Yaseen', '35201-6655443-4', '2012-07-04', 'Female', 'Muhammad Yaseen', '35201-5544332-1', '+92 345 7766112', '+92 345 7766112', 'Johar Town, Phase 1, Lahore', 'c3333333-3333-3333-3333-333333333333', 'Cambridge (Lily)', 'The City School', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', 'Active')
+    ('a1111111-1111-1111-1111-111111111111', 'ADM-2022-118', 'EAG-10-042', 'Muhammad Rayyan Butt', '35201-8491023-1', '2010-05-14', 'Male', 'Tariq Mehmood Butt', '35201-1928374-1', '+92 300 4581290', '+92 300 4581290', 'House 14-B, Canal View, Lahore', 'c1111111-1111-1111-1111-111111111111', 'Science A (Rose)', 'Lahore Grammar School', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150', 'Active'),
+    ('a2222222-2222-2222-2222-222222222222', 'ADM-2022-119', 'EAG-10-041', 'Zainab Fatima', '35201-9988112-2', '2010-09-22', 'Female', 'Sheikh Yaseen Rafiq', '35201-8877221-3', '+92 321 9871234', '+92 321 9871234', 'House 88, Faisal Town, Lahore', 'c1111111-1111-1111-1111-111111111111', 'Science A (Rose)', 'Beaconhouse School System', 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150', 'Active'),
+    ('a3333333-3333-3333-3333-333333333333', 'ADM-2023-205', 'EAG-09-012', 'Hamza Mujtaba', '35201-4477112-3', '2011-02-18', 'Male', 'Mujtaba Hassan', '35201-3322119-9', '+92 333 4411998', '+92 333 4411998', 'Model Town Extension, Lahore', 'c2222222-2222-2222-2222-222222222222', 'Science (Jasmine)', 'Army Public School', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150', 'Active'),
+    ('a4444444-4444-4444-4444-444444444444', 'ADM-2024-312', 'EAG-08-015', 'Ayesha Yaseen', '35201-6655443-4', '2012-07-04', 'Female', 'Muhammad Yaseen', '35201-5544332-1', '+92 345 7766112', '+92 345 7766112', 'Johar Town, Phase 1, Lahore', 'c3333333-3333-3333-3333-333333333333', 'Cambridge (Lily)', 'The City School', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150', 'Active')
 ON CONFLICT (admission_no) DO NOTHING;
 
 -- Seed Invoices
 INSERT INTO public.fee_invoices (id, invoice_no, challan_no, student_id, billing_month, issue_date, due_date, expiry_date, tuition_amount_pkr, lab_amount_pkr, exam_amount_pkr, development_amount_pkr, concession_amount_pkr, arrears_amount_pkr, total_due_pkr, late_surcharge_pkr, total_after_due_date_pkr, paid_amount_pkr, status)
 VALUES
-    ('i1111111-1111-1111-1111-111111111111', 'INV-2026-10-8492', 'CH-2026-10-8492', 's1111111-1111-1111-1111-111111111111', 'October 2026', '2026-10-01', '2026-10-10', '2026-10-20', 14000.00, 1500.00, 1000.00, 1000.00, 0.00, 0.00, 17500.00, 500.00, 18000.00, 17500.00, 'Paid'),
-    ('i2222222-2222-2222-2222-222222222222', 'INV-2026-10-8493', 'CH-2026-10-8493', 's2222222-2222-2222-2222-222222222222', 'October 2026', '2026-10-01', '2026-10-10', '2026-10-20', 14000.00, 1500.00, 1000.00, 1000.00, 0.00, 0.00, 17500.00, 500.00, 18000.00, 17500.00, 'Paid'),
-    ('i3333333-3333-3333-3333-333333333333', 'INV-2026-10-8494', 'CH-2026-10-8494', 's3333333-3333-3333-3333-333333333333', 'October 2026', '2026-10-01', '2026-10-10', '2026-10-20', 14000.00, 1500.00, 1000.00, 1000.00, 0.00, 0.00, 17500.00, 500.00, 18000.00, 0.00, 'Unpaid')
+    ('b1111111-1111-1111-1111-111111111111', 'INV-2026-10-8492', 'CH-2026-10-8492', 'a1111111-1111-1111-1111-111111111111', 'October 2026', '2026-10-01', '2026-10-10', '2026-10-20', 14000.00, 1500.00, 1000.00, 1000.00, 0.00, 0.00, 17500.00, 500.00, 18000.00, 17500.00, 'Paid'),
+    ('b2222222-2222-2222-2222-222222222222', 'INV-2026-10-8493', 'CH-2026-10-8493', 'a2222222-2222-2222-2222-222222222222', 'October 2026', '2026-10-01', '2026-10-10', '2026-10-20', 14000.00, 1500.00, 1000.00, 1000.00, 0.00, 0.00, 17500.00, 500.00, 18000.00, 17500.00, 'Paid'),
+    ('b3333333-3333-3333-3333-333333333333', 'INV-2026-10-8494', 'CH-2026-10-8494', 'a3333333-3333-3333-3333-333333333333', 'October 2026', '2026-10-01', '2026-10-10', '2026-10-20', 14000.00, 1500.00, 1000.00, 1000.00, 0.00, 0.00, 17500.00, 500.00, 18000.00, 0.00, 'Unpaid')
 ON CONFLICT (invoice_no) DO NOTHING;
 
 -- Seed Fee Payments
 INSERT INTO public.fee_payments (id, invoice_id, student_id, receipt_no, amount_paid_pkr, payment_channel, payment_mode, transaction_ref, bank_name, sender_mobile, received_by, payment_date, reconciliation_status, remarks)
 VALUES
-    ('p1111111-1111-1111-1111-111111111111', 'i1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'REC-90412', 17500.00, 'Bank Challan (HBL / Meezan)', 'HBL Online Banking', 'HBL-TXN-84910284', 'Habib Bank Limited', '+92 300 4581290', 'Bank Settlement System', NOW() - INTERVAL '2 hours', 'Verified', 'Paid on time before due date'),
-    ('p2222222-2222-2222-2222-222222222222', 'i2222222-2222-2222-2222-222222222222', 's2222222-2222-2222-2222-222222222222', 'REC-90411', 17500.00, 'Direct Cash Counter', 'Cash Desk', 'POS-CASH-99120', NULL, '+92 321 9871234', 'Admin Cashier', NOW() - INTERVAL '4 hours', 'Verified', 'Counter cash deposit')
+    ('d1111111-1111-1111-1111-111111111111', 'b1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'REC-90412', 17500.00, 'Bank Challan (HBL / Meezan)', 'HBL Online Banking', 'HBL-TXN-84910284', 'Habib Bank Limited', '+92 300 4581290', 'Bank Settlement System', NOW() - INTERVAL '2 hours', 'Verified', 'Paid on time before due date'),
+    ('d2222222-2222-2222-2222-222222222222', 'b2222222-2222-2222-2222-222222222222', 'a2222222-2222-2222-2222-222222222222', 'REC-90411', 17500.00, 'Direct Cash Counter', 'Cash Desk', 'POS-CASH-99120', NULL, '+92 321 9871234', 'Admin Cashier', NOW() - INTERVAL '4 hours', 'Verified', 'Counter cash deposit')
 ON CONFLICT (receipt_no) DO NOTHING;
 
 -- Seed Examination Record
@@ -384,13 +430,13 @@ ON CONFLICT DO NOTHING;
 -- Seed Exam Results for Rayyan Butt
 INSERT INTO public.exam_results (exam_id, student_id, subject_name, max_theory, max_practical, total_max_marks, passing_marks, obt_theory, obt_practical, obt_total_marks, percentage, letter_grade, class_rank, teacher_remarks)
 VALUES
-    ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'English Compulsory', 75.00, 0.00, 75.00, 25.00, 68.00, 0.00, 68.00, 90.67, 'A+', '3rd', 'Excellent fluency & creative composition'),
-    ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Urdu Compulsory', 75.00, 0.00, 75.00, 25.00, 62.00, 0.00, 62.00, 82.67, 'A', '5th', 'Good vocabulary and literary analysis'),
-    ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Islamiat Compulsory', 50.00, 0.00, 50.00, 17.00, 46.00, 0.00, 46.00, 92.00, 'A+', '2nd', 'Outstanding knowledge of Quranic texts'),
-    ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Pakistan Studies', 50.00, 0.00, 50.00, 17.00, 43.00, 0.00, 43.00, 86.00, 'A', '4th', 'Very good historical grasp and geography'),
-    ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Mathematics (Science)', 75.00, 0.00, 75.00, 25.00, 72.00, 0.00, 72.00, 96.00, 'A+', '1st', 'Exceptional logical proof & algebra clarity'),
-    ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Physics (Theory + Practical)', 60.00, 15.00, 75.00, 25.00, 54.00, 14.00, 68.00, 90.67, 'A+', '2nd', 'Strong laboratory dexterity and problem solving'),
-    ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Chemistry (Theory + Practical)', 60.00, 15.00, 75.00, 25.00, 50.00, 13.00, 63.00, 84.00, 'A', '4th', 'Good stoichiometric calculations'),
-    ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Biology / Computer Science', 60.00, 15.00, 75.00, 25.00, 55.00, 14.00, 69.00, 92.00, 'A+', '2nd', 'Detailed anatomical diagrams and clarity')
+    ('e1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'English Compulsory', 75.00, 0.00, 75.00, 25.00, 68.00, 0.00, 68.00, 90.67, 'A+', '3rd', 'Excellent fluency & creative composition'),
+    ('e1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'Urdu Compulsory', 75.00, 0.00, 75.00, 25.00, 62.00, 0.00, 62.00, 82.67, 'A', '5th', 'Good vocabulary and literary analysis'),
+    ('e1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'Islamiat Compulsory', 50.00, 0.00, 50.00, 17.00, 46.00, 0.00, 46.00, 92.00, 'A+', '2nd', 'Outstanding knowledge of Quranic texts'),
+    ('e1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'Pakistan Studies', 50.00, 0.00, 50.00, 17.00, 43.00, 0.00, 43.00, 86.00, 'A', '4th', 'Very good historical grasp and geography'),
+    ('e1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'Mathematics (Science)', 75.00, 0.00, 75.00, 25.00, 72.00, 0.00, 72.00, 96.00, 'A+', '1st', 'Exceptional logical proof & algebra clarity'),
+    ('e1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'Physics (Theory + Practical)', 60.00, 15.00, 75.00, 25.00, 54.00, 14.00, 68.00, 90.67, 'A+', '2nd', 'Strong laboratory dexterity and problem solving'),
+    ('e1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'Chemistry (Theory + Practical)', 60.00, 15.00, 75.00, 25.00, 50.00, 13.00, 63.00, 84.00, 'A', '4th', 'Good stoichiometric calculations'),
+    ('e1111111-1111-1111-1111-111111111111', 'a1111111-1111-1111-1111-111111111111', 'Biology / Computer Science', 60.00, 15.00, 75.00, 25.00, 55.00, 14.00, 69.00, 92.00, 'A+', '2nd', 'Detailed anatomical diagrams and clarity')
 ON CONFLICT (exam_id, student_id, subject_name) DO NOTHING;
 
