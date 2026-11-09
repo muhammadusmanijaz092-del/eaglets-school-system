@@ -19,6 +19,7 @@ const navItems: NavItem[] = [
   { label: 'Daily Attendance', href: '/attendance', icon: 'fact_check' },
   { label: 'Timetable, Syllabus & Diary', href: '/academics', icon: 'menu_book' },
   { label: 'Examination & Result Cards', href: '/examinations', icon: 'assignment_turned_in' },
+  { label: 'Settings & Access Control', href: '/settings', icon: 'admin_panel_settings' },
 ]
 
 export default function Sidebar() {
@@ -116,13 +117,20 @@ export default function Sidebar() {
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-white/10 text-[11px]">
+          <Link
+            href="/login"
+            className="text-[#f5bc71] hover:underline flex items-center gap-1 font-semibold"
+          >
+            <span className="material-symbols-outlined text-[14px]">logout</span>
+            <span>Switch Role / Logout</span>
+          </Link>
           <span className="text-[#7d93c2] flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            Server Online
+            Online
           </span>
-          <span className="text-[#f5bc71] font-semibold">PKR Live Ledger</span>
         </div>
       </div>
     </aside>
   )
 }
+

@@ -619,3 +619,4 @@ export const INITIAL_TIMETABLE: TimetableSlot[] = [
   { id: 't-7', day_of_week: 'Monday', period_number: 7, start_time: '01:00', end_time: '01:45', subject_name: 'Biology / CS', teacher_name: 'Shahbaz Alam', room_number: 'CS Lab 1', class_name: 'Grade 10 - Science A' },
   { id: 't-8', day_of_week: 'Monday', period_number: 8, start_time: '01:45', end_time: '02:30', subject_name: 'Urdu Compulsory', teacher_name: 'Nighat Sultana', room_number: 'Room 201', class_name: 'Grade 10 - Science A' },
 ]
+

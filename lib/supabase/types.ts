@@ -164,3 +164,4 @@ export interface TimetableSlot {
   room_number: string
   class_name: string
 }
+

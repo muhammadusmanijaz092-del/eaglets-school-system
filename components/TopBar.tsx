@@ -117,3 +117,4 @@ export default function TopBar({ onNewAdmission, onRecordFee }: TopBarProps) {
     </header>
   )
 }
+

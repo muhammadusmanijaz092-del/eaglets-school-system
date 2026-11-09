@@ -393,3 +393,4 @@ VALUES
     ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Chemistry (Theory + Practical)', 60.00, 15.00, 75.00, 25.00, 50.00, 13.00, 63.00, 84.00, 'A', '4th', 'Good stoichiometric calculations'),
     ('e1111111-1111-1111-1111-111111111111', 's1111111-1111-1111-1111-111111111111', 'Biology / Computer Science', 60.00, 15.00, 75.00, 25.00, 55.00, 14.00, 69.00, 92.00, 'A+', '2nd', 'Detailed anatomical diagrams and clarity')
 ON CONFLICT (exam_id, student_id, subject_name) DO NOTHING;
+
