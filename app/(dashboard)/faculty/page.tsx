@@ -2,9 +2,9 @@
 
 import React, { useState } from 'react'
 import Modal from '@/components/Modal'
-import { INITIAL_FACULTY } from '@/lib/mock-data'
 import { FacultyItem } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
+import { useFacultyStore, DESIGNATION_PRESETS } from '@/lib/faculty-store'
 
 const ALL_CLASS_OPTIONS = [
   'Playgroup',
@@ -23,7 +23,7 @@ const ALL_CLASS_OPTIONS = [
 ]
 
 export default function FacultyPage() {
-  const [facultyList, setFacultyList] = useState<FacultyItem[]>(INITIAL_FACULTY)
+  const { faculty: facultyList, deleteFaculty, upsertFaculty } = useFacultyStore()
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'On Leave' | 'Resigned'>('All')
   const [searchQuery, setSearchQuery] = useState('')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -62,7 +62,7 @@ export default function FacultyPage() {
     email: '',
     campus: '',
     qualification: '',
-    designation: 'Senior Secondary Teacher',
+    designation: 'Faculty Teachers',
     department: 'Science',
     assigned_classes: 'Grade 10, Grade 9',
     assigned_subjects: 'Physics',
@@ -131,7 +131,7 @@ export default function FacultyPage() {
       status: 'Active',
     }
 
-    setFacultyList([newStaff, ...facultyList])
+    upsertFaculty(newStaff)
     setIsAddModalOpen(false)
 
     // Sync to Supabase in background if connected
@@ -152,7 +152,7 @@ export default function FacultyPage() {
       email: '',
       campus: '',
       qualification: '',
-      designation: 'Senior Secondary Teacher',
+      designation: 'Faculty Teachers',
       department: 'Science',
       assigned_classes: 'Grade 10, Grade 9',
       assigned_subjects: 'Physics',
@@ -225,7 +225,7 @@ export default function FacultyPage() {
       assigned_classes: finalClasses,
     }
 
-    setFacultyList(facultyList.map((f) => (f.id === updatedStaff.id ? updatedStaff : f)))
+    upsertFaculty(updatedStaff)
     if (selectedStaff?.id === updatedStaff.id) {
       setSelectedStaff(updatedStaff)
     }
@@ -322,7 +322,7 @@ export default function FacultyPage() {
       password: credPassword,
     }
 
-    setFacultyList(facultyList.map((f) => (f.id === updatedStaff.id ? updatedStaff : f)))
+    upsertFaculty(updatedStaff)
     if (selectedStaff?.id === updatedStaff.id) setSelectedStaff(updatedStaff)
     if (staffToEdit?.id === updatedStaff.id) setStaffToEdit(updatedStaff)
 
@@ -356,7 +356,7 @@ export default function FacultyPage() {
   const handleConfirmDelete = async () => {
     if (!staffToDelete) return
 
-    setFacultyList(facultyList.filter((f) => f.id !== staffToDelete.id))
+    deleteFaculty(staffToDelete.id)
     if (selectedStaff?.id === staffToDelete.id) {
       setSelectedStaff(null)
       setIsSalarySlipModalOpen(false)
@@ -758,18 +758,25 @@ export default function FacultyPage() {
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Designation / Position *
+                Designation & Role-Based Access Preset <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 required
                 value={formData.designation}
                 onChange={(e) =>
                   setFormData({ ...formData, designation: e.target.value })
                 }
-                placeholder="e.g. Senior Secondary Teacher"
-                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-              />
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-medium text-slate-800"
+              >
+                {DESIGNATION_PRESETS.map((preset) => (
+                  <option key={preset} value={preset}>
+                    {preset}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[10px] text-slate-400 mt-1 block">
+                Assigns initial role-based access level for faculty portal authentication.
+              </span>
             </div>
 
             <div>
@@ -1082,15 +1089,26 @@ export default function FacultyPage() {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Designation <span className="text-red-500">*</span>
+                  Designation & Role-Based Access Preset <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <select
                   required
                   value={staffToEdit.designation}
                   onChange={(e) => setStaffToEdit({ ...staffToEdit, designation: e.target.value })}
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-                />
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-medium text-slate-800"
+                >
+                  {!DESIGNATION_PRESETS.includes(staffToEdit.designation as any) && (
+                    <option value={staffToEdit.designation}>{staffToEdit.designation} (Custom)</option>
+                  )}
+                  {DESIGNATION_PRESETS.map((preset) => (
+                    <option key={preset} value={preset}>
+                      {preset}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Role preset determines system permissions and module authorization.
+                </span>
               </div>
 
               <div>

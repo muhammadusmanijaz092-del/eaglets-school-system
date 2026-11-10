@@ -88,3 +88,4 @@ export function useRootAdmin() {
 
   return { admin, updateAdmin, initials: getInitials(admin.name) }
 }
+
