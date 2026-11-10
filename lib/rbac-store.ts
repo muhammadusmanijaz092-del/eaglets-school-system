@@ -19,11 +19,12 @@ export type PermissionId =
   | 'manage_academics'
   | 'manage_examinations'
   | 'view_settings'
+  | (string & {})
 
 export interface PermissionDef {
   id: PermissionId
   label: string
-  category: 'Students' | 'Fee & Finance' | 'Attendance' | 'Faculty & HR' | 'Academics & Exams' | 'Administration'
+  category: 'Students' | 'Fee & Finance' | 'Attendance' | 'Faculty & HR' | 'Academics & Exams' | 'Administration' | string
   description: string
   navLink?: string
 }
@@ -311,6 +312,31 @@ const DEFAULT_ROLES: RoleDefinition[] = [
 
 const RBAC_ROLES_STORAGE_KEY = 'eaglets_rbac_roles_v2'
 const ACTIVE_USER_STORAGE_KEY = 'eaglets_active_user_v2'
+const CUSTOM_PERMISSIONS_STORAGE_KEY = 'eaglets_custom_permissions_v1'
+
+export function getStoredCustomPermissions(): PermissionDef[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(CUSTOM_PERMISSIONS_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed
+    }
+  } catch (err) {
+    console.error('Failed to load custom permissions:', err)
+  }
+  return []
+}
+
+export function saveStoredCustomPermissions(perms: PermissionDef[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(CUSTOM_PERMISSIONS_STORAGE_KEY, JSON.stringify(perms))
+    window.dispatchEvent(new CustomEvent('eaglets_custom_perms_updated', { detail: perms }))
+  } catch (err) {
+    console.error('Failed to save custom permissions:', err)
+  }
+}
 
 export function getStoredRoles(): RoleDefinition[] {
   if (typeof window === 'undefined') return DEFAULT_ROLES
@@ -376,10 +402,12 @@ export function saveStoredActiveUser(user: CurrentUser): void {
 export function useRBAC() {
   const [roles, setRoles] = useState<RoleDefinition[]>(() => DEFAULT_ROLES)
   const [currentUser, setCurrentUser] = useState<CurrentUser>(() => getDefaultRootUser())
+  const [customPermissions, setCustomPermissions] = useState<PermissionDef[]>([])
 
   useEffect(() => {
     setRoles(getStoredRoles())
     setCurrentUser(getStoredActiveUser())
+    setCustomPermissions(getStoredCustomPermissions())
 
     const handleRolesUpdate = (e: any) => {
       if (e?.detail) setRoles(e.detail)
@@ -391,16 +419,26 @@ export function useRBAC() {
       else setCurrentUser(getStoredActiveUser())
     }
 
+    const handleCustomPermsUpdate = (e: any) => {
+      if (e?.detail) setCustomPermissions(e.detail)
+      else setCustomPermissions(getStoredCustomPermissions())
+    }
+
     window.addEventListener('eaglets_rbac_roles_updated', handleRolesUpdate)
     window.addEventListener('eaglets_active_user_updated', handleUserUpdate)
+    window.addEventListener('eaglets_custom_perms_updated', handleCustomPermsUpdate)
     window.addEventListener('storage', handleRolesUpdate)
 
     return () => {
       window.removeEventListener('eaglets_rbac_roles_updated', handleRolesUpdate)
       window.removeEventListener('eaglets_active_user_updated', handleUserUpdate)
+      window.removeEventListener('eaglets_custom_perms_updated', handleCustomPermsUpdate)
       window.removeEventListener('storage', handleRolesUpdate)
     }
   }, [])
+
+  // All combined permissions (Built-in + any dynamically added custom features)
+  const allPermissions = [...ALL_PERMISSIONS, ...customPermissions]
 
   // Check if current user is Root Administrator
   const isRootAdmin = currentUser.isRoot === true
@@ -480,13 +518,47 @@ export function useRBAC() {
     return roleObj
   }
 
-  // Delete a custom designation
-  const deleteCustomRole = (roleName: string) => {
+  // Delete any designation (with guard to keep at least one role)
+  const deleteRole = (roleName: string): boolean => {
+    if (roles.length <= 1) {
+      alert('Cannot delete the last remaining designation. At least one role is required.')
+      return false
+    }
     const updated = roles.filter(
-      (r) => !(r.name.toLowerCase() === roleName.toLowerCase() && r.isCustom)
+      (r) => r.name.toLowerCase() !== roleName.toLowerCase()
     )
     saveStoredRoles(updated)
     setRoles(updated)
+    return true
+  }
+
+  // Delete a custom designation
+  const deleteCustomRole = (roleName: string) => {
+    return deleteRole(roleName)
+  }
+
+  // Register a new action/permission dynamically
+  const addCustomPermission = (def: PermissionDef): boolean => {
+    const current = getStoredCustomPermissions()
+    const exists =
+      current.some((p) => p.id === def.id) ||
+      ALL_PERMISSIONS.some((p) => p.id === def.id)
+    if (exists) {
+      alert(`Permission action with ID "${def.id}" already exists.`)
+      return false
+    }
+    const updated = [...current, def]
+    saveStoredCustomPermissions(updated)
+    setCustomPermissions(updated)
+    return true
+  }
+
+  // Remove a dynamically added permission
+  const deleteCustomPermission = (permId: string) => {
+    const current = getStoredCustomPermissions()
+    const updated = current.filter((p) => p.id !== permId)
+    saveStoredCustomPermissions(updated)
+    setCustomPermissions(updated)
   }
 
   // Assign staff member to a designation
@@ -515,12 +587,16 @@ export function useRBAC() {
     roles,
     currentUser,
     isRootAdmin,
+    allPermissions,
     hasPermission,
     switchUser,
     switchToRootAdmin,
     saveRolePermissions,
     addCustomRole,
     deleteCustomRole,
+    deleteRole,
+    addCustomPermission,
+    deleteCustomPermission,
     assignStaffDesignation,
     resetToDefaults,
   }

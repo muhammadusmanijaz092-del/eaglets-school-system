@@ -7,6 +7,7 @@ import {
   useRBAC,
   ALL_PERMISSIONS,
   PermissionId,
+  PermissionDef,
   RoleDefinition,
   CurrentUser,
 } from '@/lib/rbac-store'
@@ -17,9 +18,13 @@ export default function AccessControlPage() {
     roles,
     currentUser,
     isRootAdmin,
+    allPermissions,
     saveRolePermissions,
     addCustomRole,
     deleteCustomRole,
+    deleteRole,
+    addCustomPermission,
+    deleteCustomPermission,
     assignStaffDesignation,
     switchUser,
     switchToRootAdmin,
@@ -38,6 +43,15 @@ export default function AccessControlPage() {
   const [newRoleDept, setNewRoleDept] = useState('General Operations')
   const [newRoleDesc, setNewRoleDesc] = useState('')
   const [addRoleError, setAddRoleError] = useState<string | null>(null)
+
+  // Add Dynamic Action / Permission Modal State
+  const [isAddActionModalOpen, setIsAddActionModalOpen] = useState(false)
+  const [newActionId, setNewActionId] = useState('')
+  const [newActionLabel, setNewActionLabel] = useState('')
+  const [newActionCategory, setNewActionCategory] = useState('Students')
+  const [newActionDesc, setNewActionDesc] = useState('')
+  const [newActionNavLink, setNewActionNavLink] = useState('')
+  const [addActionError, setAddActionError] = useState<string | null>(null)
 
   // Success Notification
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null)
@@ -111,7 +125,7 @@ export default function AccessControlPage() {
   // Handle check all permissions
   const handleCheckAll = () => {
     if (!currentRole) return
-    const allIds = ALL_PERMISSIONS.map((p) => p.id)
+    const allIds = allPermissions.map((p) => p.id)
     saveRolePermissions(currentRole.name, allIds)
     setSaveSuccessMsg(`All ${allIds.length} features enabled for "${currentRole.name}"`)
     setTimeout(() => setSaveSuccessMsg(null), 2500)
@@ -123,6 +137,63 @@ export default function AccessControlPage() {
     saveRolePermissions(currentRole.name, [])
     setSaveSuccessMsg(`All features revoked for "${currentRole.name}"`)
     setTimeout(() => setSaveSuccessMsg(null), 2500)
+  }
+
+  // Handle delete currently selected designation
+  const handleDeleteCurrentRole = () => {
+    if (!currentRole) return
+    if (roles.length <= 1) {
+      alert('Cannot delete the last remaining designation. At least one designation is required.')
+      return
+    }
+    if (
+      !confirm(
+        `Are you sure you want to delete designation "${currentRole.name}"?\nAny staff assigned to this role will need to be reassigned.`
+      )
+    ) {
+      return
+    }
+
+    const roleToDelete = currentRole.name
+    const remainingRoles = roles.filter(
+      (r) => r.name.toLowerCase() !== roleToDelete.toLowerCase()
+    )
+    const success = deleteRole(roleToDelete)
+    if (success && remainingRoles.length > 0) {
+      setSelectedRoleName(remainingRoles[0].name)
+      setSaveSuccessMsg(`Designation "${roleToDelete}" has been deleted.`)
+      setTimeout(() => setSaveSuccessMsg(null), 3000)
+    }
+  }
+
+  // Handle create new dynamic feature/action
+  const handleCreateAction = (e: React.FormEvent) => {
+    e.preventDefault()
+    setAddActionError(null)
+
+    const cleanId = newActionId.trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_')
+    if (!cleanId) {
+      setAddActionError('Action identifier is required.')
+      return
+    }
+
+    const success = addCustomPermission({
+      id: cleanId,
+      label: newActionLabel.trim(),
+      category: newActionCategory.trim() || 'General',
+      description: newActionDesc.trim() || `Permission for ${newActionLabel.trim()}`,
+      navLink: newActionNavLink.trim() || undefined,
+    })
+
+    if (success) {
+      setIsAddActionModalOpen(false)
+      setNewActionId('')
+      setNewActionLabel('')
+      setNewActionDesc('')
+      setNewActionNavLink('')
+      setSaveSuccessMsg(`New feature action "${cleanId}" successfully registered into RBAC Matrix!`)
+      setTimeout(() => setSaveSuccessMsg(null), 3000)
+    }
   }
 
   // Handle create new designation
@@ -160,8 +231,8 @@ export default function AccessControlPage() {
     }
   }
 
-  // Categories list
-  const categories = Array.from(new Set(ALL_PERMISSIONS.map((p) => p.category)))
+  // Categories list (dynamically indexed from all permissions)
+  const categories = Array.from(new Set(allPermissions.map((p) => p.category)))
 
   // Filter staff list
   const filteredStaff = facultyList.filter(
@@ -298,7 +369,7 @@ export default function AccessControlPage() {
                 {roles.map((r) => {
                   const isSelected = r.name.toLowerCase() === selectedRoleName.toLowerCase()
                   const permCount = r.permissions.length
-                  const totalPerms = ALL_PERMISSIONS.length
+                  const totalPerms = allPermissions.length
 
                   return (
                     <div
@@ -318,23 +389,30 @@ export default function AccessControlPage() {
                         >
                           {r.name}
                         </span>
-                        {r.isCustom && (
-                          <span
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              if (confirm(`Delete custom designation "${r.name}"?`)) {
-                                deleteCustomRole(r.name)
-                                setSelectedRoleName('Principal')
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (roles.length <= 1) {
+                              alert('Cannot delete the last remaining designation.')
+                              return
+                            }
+                            if (confirm(`Delete designation "${r.name}"?`)) {
+                              const remaining = roles.filter(
+                                (role) => role.name.toLowerCase() !== r.name.toLowerCase()
+                              )
+                              const success = deleteRole(r.name)
+                              if (success && remaining.length > 0) {
+                                setSelectedRoleName(remaining[0].name)
                               }
-                            }}
-                            className={`p-1 rounded hover:bg-red-500 hover:text-white transition-colors cursor-pointer text-[10px] ${
-                              isSelected ? 'text-slate-300' : 'text-slate-400'
-                            }`}
-                            title="Delete custom designation"
-                          >
-                            <span className="material-symbols-outlined text-[13px]">delete</span>
-                          </span>
-                        )}
+                            }
+                          }}
+                          className={`p-1 rounded hover:bg-red-500 hover:text-white transition-colors cursor-pointer text-[10px] ${
+                            isSelected ? 'text-slate-300' : 'text-slate-400'
+                          }`}
+                          title={`Delete designation "${r.name}"`}
+                        >
+                          <span className="material-symbols-outlined text-[13px]">delete</span>
+                        </span>
                       </div>
 
                       <div className="flex items-center justify-between text-[10px]">
@@ -400,7 +478,7 @@ export default function AccessControlPage() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <button
                     type="button"
                     onClick={handleCheckAll}
@@ -415,13 +493,22 @@ export default function AccessControlPage() {
                   >
                     Uncheck All
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteCurrentRole}
+                    className="h-8 px-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-semibold text-[11px] flex items-center gap-1 transition-colors cursor-pointer"
+                    title={`Delete designation "${currentRole?.name}"`}
+                  >
+                    <span className="material-symbols-outlined text-[15px]">delete</span>
+                    <span>Delete Designation</span>
+                  </button>
                 </div>
               </div>
 
               {/* Categorized Checkbox List */}
               <div className="flex flex-col gap-5">
                 {categories.map((category) => {
-                  const categoryPerms = ALL_PERMISSIONS.filter((p) => p.category === category)
+                  const categoryPerms = allPermissions.filter((p) => p.category === category)
 
                   return (
                     <div
@@ -493,11 +580,20 @@ export default function AccessControlPage() {
                 <span className="text-[11px] text-slate-500">
                   Total Active Permissions:{' '}
                   <strong className="text-[#001639]">
-                    {currentRole?.permissions.length} of {ALL_PERMISSIONS.length} Features
+                    {currentRole?.permissions.length} of {allPermissions.length} Features
                   </strong>
                 </span>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleDeleteCurrentRole}
+                    className="h-9 px-3 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer"
+                    title={`Delete designation "${currentRole?.name}"`}
+                  >
+                    <span className="material-symbols-outlined text-[16px]">delete</span>
+                    <span>Delete Designation</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
@@ -511,6 +607,74 @@ export default function AccessControlPage() {
                     <span className="material-symbols-outlined text-[16px]">save</span>
                     <span>Save Role Permissions</span>
                   </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Architecture Guide: Automatic Feature Registration Path */}
+            <div className="bg-gradient-to-br from-[#001639] via-slate-900 to-[#122b54] text-white p-5 rounded-xl border border-slate-700/80 shadow-md flex flex-col gap-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-400/20 text-[#f5bc71] flex items-center justify-center flex-shrink-0 border border-amber-400/30 shadow-inner">
+                    <span className="material-symbols-outlined text-[20px]">account_tree</span>
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-sm text-white">
+                        System Architecture: Auto-Registration for New Features & Actions
+                      </h3>
+                      <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 hidden sm:inline-block">
+                        Zero Manual Page Coding
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Canonical Path:{' '}
+                      <code className="text-[#f5bc71] font-mono bg-black/40 px-2 py-0.5 rounded border border-white/10 select-all">
+                        lib/rbac-store.ts → ALL_PERMISSIONS
+                      </code>
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddActionModalOpen(true)}
+                  className="h-8 px-3 bg-[#b3272c] hover:bg-[#8e1d21] text-white rounded-lg font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm self-start sm:self-auto flex-shrink-0"
+                >
+                  <span className="material-symbols-outlined text-[16px]">add_task</span>
+                  <span>+ Register New Action</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t border-white/10 text-[11px]">
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex flex-col gap-1.5">
+                  <span className="font-bold text-[#f5bc71] flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-[#f5bc71]/20 text-[#f5bc71] text-[10px] font-mono flex items-center justify-center">1</span>
+                    Define Action in Store
+                  </span>
+                  <p className="text-slate-300 text-[10.5px] leading-relaxed">
+                    Append your new action object to <code className="text-white font-mono bg-white/10 px-1 rounded">ALL_PERMISSIONS</code> in <code className="text-[#f5bc71] font-mono">lib/rbac-store.ts</code> (or click &quot;+ Register New Action&quot; above). Specify an <code className="text-white font-mono">id</code>, <code className="text-white font-mono">label</code>, <code className="text-white font-mono">category</code>, and <code className="text-white font-mono">description</code>.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex flex-col gap-1.5">
+                  <span className="font-bold text-[#f5bc71] flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-[#f5bc71]/20 text-[#f5bc71] text-[10px] font-mono flex items-center justify-center">2</span>
+                    Auto-Appears in Matrix
+                  </span>
+                  <p className="text-slate-300 text-[10.5px] leading-relaxed">
+                    Categories and checkboxes are dynamically mapped: <code className="text-white font-mono bg-white/10 px-1 rounded">Set(allPermissions.map(p =&gt; p.category))</code>. Any new feature immediately renders with interactive checkboxes for all designations.
+                  </p>
+                </div>
+
+                <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex flex-col gap-1.5">
+                  <span className="font-bold text-[#f5bc71] flex items-center gap-1">
+                    <span className="w-4 h-4 rounded-full bg-[#f5bc71]/20 text-[#f5bc71] text-[10px] font-mono flex items-center justify-center">3</span>
+                    Enforce in Application UI
+                  </span>
+                  <p className="text-slate-300 text-[10.5px] leading-relaxed">
+                    In your page or component, call <code className="text-[#f5bc71] font-mono">const &#123; hasPermission &#125; = useRBAC()</code> and test <code className="text-white font-mono bg-white/10 px-1 rounded">hasPermission(&apos;your_action_id&apos;)</code> to gate buttons, forms, or views.
+                  </p>
                 </div>
               </div>
             </div>
@@ -619,7 +783,7 @@ export default function AccessControlPage() {
                         </td>
                         <td className="py-2.5 px-3">
                           <span className="px-2 py-0.5 rounded font-mono font-bold text-[10.5px] bg-slate-100 text-slate-700">
-                            {permCount} of {ALL_PERMISSIONS.length} Features
+                            {permCount} of {allPermissions.length} Features
                           </span>
                         </td>
                         <td className="py-2.5 px-3 text-right">
@@ -729,6 +893,127 @@ export default function AccessControlPage() {
             >
               <span className="material-symbols-outlined text-[17px]">add_circle</span>
               <span>Create Designation</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Register New Feature / Action Modal */}
+      <Modal
+        isOpen={isAddActionModalOpen}
+        onClose={() => {
+          setIsAddActionModalOpen(false)
+          setAddActionError(null)
+        }}
+        title="Register New Feature or Action"
+        subtitle="Dynamically register a new capability. It will automatically populate the Access Control Matrix for all designations."
+        maxWidth="md"
+      >
+        <form onSubmit={handleCreateAction} className="flex flex-col gap-4 text-xs">
+          {addActionError && (
+            <div className="p-3 bg-red-50 border border-red-300 rounded-lg text-red-800 text-xs flex items-center gap-2">
+              <span className="material-symbols-outlined text-red-600 text-[18px]">error</span>
+              <span>{addActionError}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Permission ID / Key <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={newActionId}
+              onChange={(e) => setNewActionId(e.target.value)}
+              placeholder="e.g. export_students_csv, manage_hostel, issue_library_books"
+              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg font-mono text-[11px] focus:outline-none focus:border-[#001639]"
+            />
+            <span className="text-[10px] text-slate-400 mt-0.5 block">
+              Unique programmatic identifier used in code: <code className="font-mono">hasPermission(&apos;{newActionId || 'id'}&apos;)</code>
+            </span>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Action Display Label <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={newActionLabel}
+              onChange={(e) => setNewActionLabel(e.target.value)}
+              placeholder="e.g. Export Student Records to Excel"
+              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Category Group <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              list="category-suggestions"
+              value={newActionCategory}
+              onChange={(e) => setNewActionCategory(e.target.value)}
+              placeholder="e.g. Students, Fee & Finance, Attendance, Library"
+              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+            />
+            <datalist id="category-suggestions">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+            <span className="text-[10px] text-slate-400 mt-0.5 block">
+              Choose an existing category or enter a brand new group name.
+            </span>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Description & Scope
+            </label>
+            <textarea
+              rows={2}
+              value={newActionDesc}
+              onChange={(e) => setNewActionDesc(e.target.value)}
+              placeholder="Explain what access or actions this permission allows in the system..."
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+            />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Associated Route Path (Optional)
+            </label>
+            <input
+              type="text"
+              value={newActionNavLink}
+              onChange={(e) => setNewActionNavLink(e.target.value)}
+              placeholder="e.g. /students/export or /library"
+              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg font-mono text-[11px] focus:outline-none focus:border-[#001639]"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAddActionModalOpen(false)
+                setAddActionError(null)
+              }}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 bg-[#b3272c] hover:bg-[#8e1d21] text-white rounded-lg font-bold transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[17px]">check_circle</span>
+              <span>Register Action</span>
             </button>
           </div>
         </form>
