@@ -178,6 +178,18 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
 
           {/* Notifications & Avatar */}
           <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            {/* Global Root Badge */}
+            <Link
+              href="/settings"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#001639] text-white text-[11px] font-bold hover:bg-[#b3272c] transition-colors border border-slate-700 shadow-2xs"
+              title="Global Root Access Active"
+            >
+              <span className="material-symbols-outlined text-[13px] text-[#f5bc71]">
+                shield_person
+              </span>
+              <span>Root Admin</span>
+            </Link>
+
             <button
               type="button"
               className="relative w-9 h-9 flex items-center justify-center text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
@@ -189,7 +201,7 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
             <Link
               href="/settings"
               className="w-8 h-8 rounded-full bg-[#001639] flex items-center justify-center text-white text-xs font-bold hover:ring-2 hover:ring-[#b3272c] transition-all"
-              title="Profile & Settings"
+              title="Global Root Profile & Settings"
             >
               TA
             </Link>

@@ -13,7 +13,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard Overview', href: '/', icon: 'grid_view' },
-  { label: 'Super Admin Control Center', href: '/super-admin', icon: 'shield_person', badge: 'Root' },
   { label: 'Student Admissions & Profiles', href: '/students', icon: 'school' },
   { label: 'Faculty Hiring & Payroll', href: '/faculty', icon: 'badge' },
   { label: 'Fee & Finance (PKR Challans)', href: '/finance', icon: 'payments' },
@@ -134,8 +133,9 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               <span className="text-xs text-white truncate font-bold">
                 M. Tariq Alvi
               </span>
-              <span className="text-[10px] text-[#7d93c2] truncate">
-                Principal & Administrator
+              <span className="text-[10px] text-[#f5bc71] truncate font-medium flex items-center gap-0.5">
+                <span className="material-symbols-outlined text-[11px]">verified_user</span>
+                Global Root Admin
               </span>
             </div>
           </div>

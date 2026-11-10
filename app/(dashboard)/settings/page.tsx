@@ -48,6 +48,47 @@ export default function SettingsPage() {
         </button>
       </div>
 
+      {/* Global Root Admin Status Banner */}
+      <div className="bg-gradient-to-r from-[#001639] to-[#122b54] text-white p-5 rounded-xl shadow-xs border border-slate-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-12 h-12 rounded-xl bg-white p-1 flex items-center justify-center flex-shrink-0 shadow-md">
+            <img
+              src="/images/eaglets-logo.jpg"
+              alt="Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-baldwins text-base font-bold text-white tracking-wider">
+                M. Tariq Alvi
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-[#b3272c] text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-2xs">
+                <span className="material-symbols-outlined text-[12px] text-[#f5bc71]">verified_user</span>
+                Global Root Access Active
+              </span>
+            </div>
+            <p className="font-aster text-xs text-[#f5bc71] mt-0.5">
+              Chief Administrator & Institutional Root Authority
+            </p>
+            <p className="text-[11px] text-[#7d93c2] mt-1">
+              Unrestricted administrative privileges across Student Records, Faculty Payroll, Fee Challans, Biometric Attendance, and BISE Examinations.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap text-[11px] font-semibold text-slate-200">
+          <div className="px-3 py-1 rounded-lg bg-white/10 border border-white/10 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Cloud DB Connected</span>
+          </div>
+          <div className="px-3 py-1 rounded-lg bg-white/10 border border-white/10 flex items-center gap-1.5">
+            <span className="material-symbols-outlined text-[14px] text-[#f5bc71]">lock</span>
+            <span>2FA Hardware Enforced</span>
+          </div>
+        </div>
+      </div>
+
       {savedNotification && (
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 rounded-lg text-xs flex items-center justify-between">
           <span className="flex items-center gap-2">
@@ -202,8 +243,8 @@ export default function SettingsPage() {
                 role: 'Chief Administrator / Principal',
                 user: 'M. Tariq Alvi',
                 perms: 'Full system rights, fee overrides, payroll disbursement, audit trail',
-                badge: 'Super Admin',
-                badgeBg: 'bg-[#122b54] text-white',
+                badge: 'Global Root Admin',
+                badgeBg: 'bg-[#001639] text-[#f5bc71] border border-[#f5bc71]/40',
               },
               {
                 role: 'Vice Principal / Academic HOD',
