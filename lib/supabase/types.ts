@@ -8,6 +8,31 @@ export type Json =
 
 export type AdminRole = 'SUPER_ADMIN' | 'CAMPUS_ADMIN' | 'ACCOUNTS_MANAGER' | 'EXAM_CONTROLLER'
 
+export type LicenseTier = 'Enterprise Network' | 'Pro Academic' | 'Standard Campus' | 'Pilot Trial'
+
+export interface InstitutionTenant {
+  id: string
+  name: string
+  campus_code: string
+  city: string
+  region: string
+  subdomain: string
+  primary_admin_name: string
+  primary_admin_email: string
+  primary_admin_phone: string
+  admin_avatar?: string
+  student_count: number
+  faculty_count: number
+  capacity: number
+  license_tier: LicenseTier
+  license_status: 'Active' | 'Expiring' | 'Suspended' | 'Provisioning'
+  renewal_date: string
+  bise_affiliation: string
+  created_at: string
+  is_maintenance_mode?: boolean
+  security_key_id?: string
+}
+
 export interface AdminUser {
   id: string
   full_name: string
