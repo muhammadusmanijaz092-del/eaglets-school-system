@@ -6,6 +6,22 @@ import { INITIAL_FACULTY } from '@/lib/mock-data'
 import { FacultyItem } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
 
+const ALL_CLASS_OPTIONS = [
+  'Playgroup',
+  'Nursery',
+  'Prep / KG',
+  'Grade 1',
+  'Grade 2',
+  'Grade 3',
+  'Grade 4',
+  'Grade 5',
+  'Grade 6',
+  'Grade 7',
+  'Grade 8',
+  'Grade 9',
+  'Grade 10',
+]
+
 export default function FacultyPage() {
   const [facultyList, setFacultyList] = useState<FacultyItem[]>(INITIAL_FACULTY)
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'On Leave' | 'Resigned'>('All')
@@ -22,6 +38,8 @@ export default function FacultyPage() {
   const [staffToEdit, setStaffToEdit] = useState<FacultyItem | null>(null)
   const [staffToDelete, setStaffToDelete] = useState<FacultyItem | null>(null)
   const [editValidationError, setEditValidationError] = useState<string | null>(null)
+  const [editSalaryText, setEditSalaryText] = useState('')
+  const [editAllowancesText, setEditAllowancesText] = useState('')
 
   // Registration Form State
   const [formData, setFormData] = useState({
@@ -138,6 +156,8 @@ export default function FacultyPage() {
   // Open Edit Profile Modal
   const handleOpenEdit = (staff: FacultyItem) => {
     setStaffToEdit({ ...staff })
+    setEditSalaryText(String(staff.basic_salary_pkr ?? ''))
+    setEditAllowancesText(String(staff.allowances_pkr ?? ''))
     setEditValidationError(null)
     setIsEditModalOpen(true)
   }
@@ -162,9 +182,27 @@ export default function FacultyPage() {
       return
     }
 
-    setFacultyList(facultyList.map((f) => (f.id === staffToEdit.id ? staffToEdit : f)))
-    if (selectedStaff?.id === staffToEdit.id) {
-      setSelectedStaff(staffToEdit)
+    // Parse Text-Edited Basic Salary and Monthly Allowances
+    const cleanSalary = editSalaryText.replace(/[^0-9.]/g, '')
+    const cleanAllowances = editAllowancesText.replace(/[^0-9.]/g, '')
+    const parsedSalary = parseFloat(cleanSalary) || 0
+    const parsedAllowances = parseFloat(cleanAllowances) || 0
+
+    const finalClasses =
+      !staffToEdit.assigned_classes || staffToEdit.assigned_classes.length === 0
+        ? ['No class assigned']
+        : staffToEdit.assigned_classes
+
+    const updatedStaff: FacultyItem = {
+      ...staffToEdit,
+      basic_salary_pkr: parsedSalary,
+      allowances_pkr: parsedAllowances,
+      assigned_classes: finalClasses,
+    }
+
+    setFacultyList(facultyList.map((f) => (f.id === updatedStaff.id ? updatedStaff : f)))
+    if (selectedStaff?.id === updatedStaff.id) {
+      setSelectedStaff(updatedStaff)
     }
     setIsEditModalOpen(false)
 
@@ -175,25 +213,25 @@ export default function FacultyPage() {
         const { error } = await supabase
           .from('faculty')
           .update({
-            full_name: staffToEdit.full_name,
-            cnic: staffToEdit.cnic,
-            phone: staffToEdit.phone,
-            email: staffToEdit.email,
-            campus: staffToEdit.campus,
-            qualification: staffToEdit.qualification,
-            designation: staffToEdit.designation,
-            department: staffToEdit.department,
-            assigned_classes: staffToEdit.assigned_classes,
-            assigned_subjects: staffToEdit.assigned_subjects,
-            joining_date: staffToEdit.joining_date,
-            basic_salary_pkr: Number(staffToEdit.basic_salary_pkr),
-            allowances_pkr: Number(staffToEdit.allowances_pkr),
-            payment_mode: staffToEdit.payment_mode,
-            bank_name: staffToEdit.bank_name,
-            account_number: staffToEdit.account_number,
-            status: staffToEdit.status,
+            full_name: updatedStaff.full_name,
+            cnic: updatedStaff.cnic,
+            phone: updatedStaff.phone,
+            email: updatedStaff.email,
+            campus: updatedStaff.campus,
+            qualification: updatedStaff.qualification,
+            designation: updatedStaff.designation,
+            department: updatedStaff.department,
+            assigned_classes: updatedStaff.assigned_classes,
+            assigned_subjects: updatedStaff.assigned_subjects,
+            joining_date: updatedStaff.joining_date,
+            basic_salary_pkr: updatedStaff.basic_salary_pkr,
+            allowances_pkr: updatedStaff.allowances_pkr,
+            payment_mode: updatedStaff.payment_mode,
+            bank_name: updatedStaff.bank_name,
+            account_number: updatedStaff.account_number,
+            status: updatedStaff.status,
           })
-          .eq('id', staffToEdit.id)
+          .eq('id', updatedStaff.id)
         if (error) console.error('Supabase faculty update error:', error)
       } catch (err) {
         console.error('Failed to update faculty in cloud:', err)
@@ -637,15 +675,16 @@ export default function FacultyPage() {
                 Base Monthly Salary (PKR) *
               </label>
               <input
-                type="number"
+                type="text"
                 required
                 value={formData.basic_salary_pkr}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    basic_salary_pkr: Number(e.target.value),
+                    basic_salary_pkr: e.target.value.replace(/[^0-9.]/g, '') as any,
                   })
                 }
+                placeholder="e.g. 85000"
                 className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
               />
             </div>
@@ -655,14 +694,15 @@ export default function FacultyPage() {
                 Allowances & Perks (PKR)
               </label>
               <input
-                type="number"
+                type="text"
                 value={formData.allowances_pkr}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    allowances_pkr: Number(e.target.value),
+                    allowances_pkr: e.target.value.replace(/[^0-9.]/g, '') as any,
                   })
                 }
+                placeholder="e.g. 15000"
                 className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
               />
             </div>
@@ -955,21 +995,148 @@ export default function FacultyPage() {
                 />
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Assigned Classes (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={staffToEdit.assigned_classes.join(', ')}
-                  onChange={(e) =>
+              {/* Assigned Classes Multiple Select */}
+              <div className="sm:col-span-2 flex flex-col gap-2.5 p-3.5 bg-slate-50/80 rounded-xl border border-slate-200">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-800 text-xs">
+                      Assigned Classes <span className="text-slate-400 font-normal">(Playgroup to Grade 10)</span>
+                    </label>
+                    <p className="text-[11px] text-slate-500">
+                      Multi-select all roster allocations or set &ldquo;No class assigned&rdquo;
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setStaffToEdit({
+                          ...staffToEdit,
+                          assigned_classes: [...ALL_CLASS_OPTIONS],
+                        })
+                      }
+                      className="text-[11px] font-semibold text-[#122b54] hover:text-[#001639] hover:underline cursor-pointer"
+                    >
+                      Select All (PG–10)
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setStaffToEdit({
+                          ...staffToEdit,
+                          assigned_classes: ['No class assigned'],
+                        })
+                      }
+                      className="text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                    >
+                      Clear / No Class
+                    </button>
+                  </div>
+                </div>
+
+                {/* Option for No class assigned */}
+                <button
+                  type="button"
+                  onClick={() => {
                     setStaffToEdit({
                       ...staffToEdit,
-                      assigned_classes: e.target.value.split(',').map((s) => s.trim()),
+                      assigned_classes: ['No class assigned'],
                     })
-                  }
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-                />
+                  }}
+                  className={`w-full p-2.5 rounded-lg border text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+                    !staffToEdit.assigned_classes ||
+                    staffToEdit.assigned_classes.length === 0 ||
+                    staffToEdit.assigned_classes.includes('No class assigned') ||
+                    staffToEdit.assigned_classes.includes('None')
+                      ? 'bg-[#001639] text-white border-[#001639] shadow-xs ring-2 ring-[#001639]/20'
+                      : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-[17px]">
+                      {!staffToEdit.assigned_classes ||
+                      staffToEdit.assigned_classes.length === 0 ||
+                      staffToEdit.assigned_classes.includes('No class assigned') ||
+                      staffToEdit.assigned_classes.includes('None')
+                        ? 'check_box'
+                        : 'check_box_outline_blank'}
+                    </span>
+                    <span>No class assigned (Administrative / Section Head / Non-teaching Staff)</span>
+                  </span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-white/15">
+                    No Allocation
+                  </span>
+                </button>
+
+                {/* Multi-select Grid from Playgroup to Grade 10 */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 pt-1">
+                  {ALL_CLASS_OPTIONS.map((cls) => {
+                    const isNoneSelected =
+                      !staffToEdit.assigned_classes ||
+                      staffToEdit.assigned_classes.includes('No class assigned') ||
+                      staffToEdit.assigned_classes.includes('None')
+                    const isSelected = !isNoneSelected && staffToEdit.assigned_classes?.includes(cls)
+
+                    return (
+                      <button
+                        key={cls}
+                        type="button"
+                        onClick={() => {
+                          const current = (staffToEdit.assigned_classes || []).filter(
+                            (c) => c !== 'No class assigned' && c !== 'None' && c !== ''
+                          )
+                          let updated: string[]
+                          if (current.includes(cls)) {
+                            updated = current.filter((c) => c !== cls)
+                            if (updated.length === 0) {
+                              updated = ['No class assigned']
+                            }
+                          } else {
+                            updated = [...current, cls]
+                          }
+                          setStaffToEdit({
+                            ...staffToEdit,
+                            assigned_classes: updated,
+                          })
+                        }}
+                        className={`px-2.5 py-2 rounded-lg border text-xs font-semibold flex items-center justify-between gap-1.5 transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#b3272c] text-white border-[#b3272c] shadow-xs'
+                            : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="truncate">{cls}</span>
+                        <span className={`material-symbols-outlined text-[15px] flex-shrink-0 ${isSelected ? 'text-white' : 'text-slate-300'}`}>
+                          {isSelected ? 'check' : 'add'}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Selected Classes Chips Preview */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-1 text-[11px] text-slate-600">
+                  <span className="font-semibold text-slate-700">Selected Classes:</span>
+                  {!staffToEdit.assigned_classes ||
+                  staffToEdit.assigned_classes.length === 0 ||
+                  staffToEdit.assigned_classes.includes('No class assigned') ||
+                  staffToEdit.assigned_classes.includes('None') ? (
+                    <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-semibold">
+                      No class assigned
+                    </span>
+                  ) : (
+                    staffToEdit.assigned_classes.map((c, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2 py-0.5 rounded bg-[#b3272c]/10 text-[#b3272c] font-semibold border border-[#b3272c]/20"
+                      >
+                        {c}
+                      </span>
+                    ))
+                  )}
+                </div>
               </div>
 
               <div>
@@ -994,18 +1161,14 @@ export default function FacultyPage() {
                   Basic Salary (PKR) <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="number"
+                  type="text"
                   required
-                  min="0"
-                  value={staffToEdit.basic_salary_pkr}
-                  onChange={(e) =>
-                    setStaffToEdit({
-                      ...staffToEdit,
-                      basic_salary_pkr: Number(e.target.value),
-                    })
-                  }
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono"
+                  value={editSalaryText}
+                  onChange={(e) => setEditSalaryText(e.target.value)}
+                  placeholder="e.g. 85000"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono text-xs"
                 />
+                <span className="text-[10px] text-slate-400">Text-editable currency field (e.g. 85000)</span>
               </div>
 
               <div>
@@ -1013,17 +1176,13 @@ export default function FacultyPage() {
                   Monthly Allowances (PKR)
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  value={staffToEdit.allowances_pkr}
-                  onChange={(e) =>
-                    setStaffToEdit({
-                      ...staffToEdit,
-                      allowances_pkr: Number(e.target.value),
-                    })
-                  }
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono"
+                  type="text"
+                  value={editAllowancesText}
+                  onChange={(e) => setEditAllowancesText(e.target.value)}
+                  placeholder="e.g. 15000"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono text-xs"
                 />
+                <span className="text-[10px] text-slate-400">Text-editable currency field (e.g. 15000)</span>
               </div>
 
               <div>
