@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { INITIAL_STUDENTS, INITIAL_FACULTY } from '@/lib/mock-data'
+import { useRootAdmin } from '@/lib/admin-store'
 
 interface TopBarProps {
   onMenuToggle?: () => void
@@ -13,6 +14,7 @@ interface TopBarProps {
 
 export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: TopBarProps) {
   const router = useRouter()
+  const { admin, initials } = useRootAdmin()
   const [selectedCampus, setSelectedCampus] = useState('Main Boys Campus, Lahore')
   const [isCommandOpen, setIsCommandOpen] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
@@ -200,10 +202,10 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
             </button>
             <Link
               href="/settings"
-              className="w-8 h-8 rounded-full bg-[#001639] flex items-center justify-center text-white text-xs font-bold hover:ring-2 hover:ring-[#b3272c] transition-all"
-              title="Global Root Profile & Settings"
+              className="w-8 h-8 rounded-full bg-[#001639] flex items-center justify-center text-white text-xs font-bold hover:ring-2 hover:ring-[#b3272c] transition-all flex-shrink-0"
+              title={`Global Root Profile (${admin.name}) • Click to Edit Credentials`}
             >
-              TA
+              {initials}
             </Link>
           </div>
         </div>

@@ -1,15 +1,24 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useRootAdmin } from '@/lib/admin-store'
 
 export default function LoginPage() {
   const router = useRouter()
+  const { admin } = useRootAdmin()
   const [role, setRole] = useState<'admin' | 'faculty' | 'finance' | 'parent'>('admin')
-  const [email, setEmail] = useState('tariq.alvi@eaglets.edu.pk')
-  const [password, setPassword] = useState('••••••••••••')
+  const [email, setEmail] = useState('admin')
+  const [password, setPassword] = useState('Password@2026')
   const [isLoading, setIsLoading] = useState(false)
+
+  useEffect(() => {
+    if (role === 'admin') {
+      setEmail(admin.username || 'admin')
+      setPassword(admin.password || 'Password@2026')
+    }
+  }, [admin, role])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,10 +65,22 @@ export default function LoginPage() {
               type="button"
               onClick={() => {
                 setRole(item.id as any)
-                if (item.id === 'admin') setEmail('tariq.alvi@eaglets.edu.pk')
-                if (item.id === 'faculty') setEmail('masood.ahmad@eaglets.edu.pk')
-                if (item.id === 'finance') setEmail('accounts@eaglets.edu.pk')
-                if (item.id === 'parent') setEmail('tariq.butt@gmail.com')
+                if (item.id === 'admin') {
+                  setEmail(admin.username || 'admin')
+                  setPassword(admin.password || 'Password@2026')
+                }
+                if (item.id === 'faculty') {
+                  setEmail('masood.ahmad')
+                  setPassword('Password@2026')
+                }
+                if (item.id === 'finance') {
+                  setEmail('accounts')
+                  setPassword('Password@2026')
+                }
+                if (item.id === 'parent') {
+                  setEmail('tariq.butt')
+                  setPassword('Password@2026')
+                }
               }}
               className={`py-1.5 rounded transition-all cursor-pointer ${
                 role === item.id
@@ -76,10 +97,10 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="flex flex-col gap-4 text-xs">
           <div>
             <label className="block font-semibold text-slate-700 mb-1">
-              Institutional Email / Username
+              Institutional Username / Email
             </label>
             <input
-              type="email"
+              type="text"
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}

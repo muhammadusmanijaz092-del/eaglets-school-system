@@ -65,6 +65,8 @@ export interface FacultyItem {
   id: string
   emp_id: string
   full_name: string
+  username?: string
+  password?: string
   cnic: string
   phone: string
   email?: string

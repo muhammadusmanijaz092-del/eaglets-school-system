@@ -3,6 +3,7 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useRootAdmin } from '@/lib/admin-store'
 
 interface NavItem {
   label: string
@@ -29,6 +30,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const { admin, initials } = useRootAdmin()
 
   return (
     <aside
@@ -127,14 +129,19 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Principal Profile & Logout Footer (Pinned Bottom) */}
       <div className="flex-shrink-0 p-3.5 border-t border-white/10 bg-[#001639]/70">
-        <div className="flex items-center justify-between mb-2.5">
+        <Link
+          href="/settings"
+          onClick={onClose}
+          className="flex items-center justify-between mb-2.5 group cursor-pointer"
+          title="Click to view & edit Root Admin profile & credentials"
+        >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-[#b3272c] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm">
-              TA
+            <div className="w-8 h-8 rounded-full bg-[#b3272c] group-hover:bg-[#88131b] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm transition-colors">
+              {initials}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs text-white truncate font-bold">
-                M. Tariq Alvi
+              <span className="text-xs text-white truncate font-bold group-hover:text-[#f5bc71] transition-colors">
+                {admin.name}
               </span>
               <span className="text-[10px] text-[#f5bc71] truncate font-medium flex items-center gap-0.5">
                 <span className="material-symbols-outlined text-[11px]">verified_user</span>
@@ -146,7 +153,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             Online
           </span>
-        </div>
+        </Link>
 
         <Link
           href="/login"

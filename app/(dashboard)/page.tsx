@@ -5,6 +5,7 @@ import Link from 'next/link'
 import StatsCard from '@/components/StatsCard'
 import Modal from '@/components/Modal'
 import PrintableChallan from '@/components/PrintableChallan'
+import { useRootAdmin } from '@/lib/admin-store'
 import {
   INITIAL_STUDENTS,
   INITIAL_PAYMENTS,
@@ -12,6 +13,7 @@ import {
 } from '@/lib/mock-data'
 
 export default function DashboardOverviewPage() {
+  const { admin } = useRootAdmin()
   const [activeTab, setActiveTab] = useState<'all' | 'bank' | 'cash' | 'pending'>('all')
   const [isChallanModalOpen, setIsChallanModalOpen] = useState(false)
   const [selectedChallan, setSelectedChallan] = useState(INITIAL_INVOICES[0])
@@ -50,7 +52,7 @@ export default function DashboardOverviewPage() {
             </span>
           </div>
           <h1 className="font-domine text-2xl lg:text-3xl font-bold text-[#001639] tracking-tight">
-            Good morning, Principal Alvi
+            Good morning, {admin.name}
           </h1>
           <p className="text-xs text-slate-500">
             Live Academic, Financial & Administrative Pulse — Academic Year 2026–2027
