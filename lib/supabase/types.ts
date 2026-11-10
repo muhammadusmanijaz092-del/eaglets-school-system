@@ -95,6 +95,8 @@ export interface StudentItem {
   dob: string
   gender: 'Male' | 'Female'
   father_name: string
+  guardian_name?: string
+  family_id?: string
   father_cnic: string
   contact_phone: string
   whatsapp_no?: string

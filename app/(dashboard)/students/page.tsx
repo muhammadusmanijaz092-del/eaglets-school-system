@@ -4,10 +4,42 @@ import React, { useState, useEffect, useRef } from 'react'
 import * as XLSX from 'xlsx'
 import Modal from '@/components/Modal'
 import PrintableChallan from '@/components/PrintableChallan'
-import { INITIAL_STUDENTS, INITIAL_CLASSES, INITIAL_INVOICES } from '@/lib/mock-data'
+import {
+  INITIAL_STUDENTS,
+  INITIAL_CLASSES,
+  INITIAL_INVOICES,
+  CLASS_PRESETS,
+  SECTION_PRESETS,
+} from '@/lib/mock-data'
 import { StudentItem } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
 import { useRBAC } from '@/lib/rbac-store'
+
+const STUDENTS_STORAGE_KEY = 'eaglets_students_v2'
+
+function getStoredStudents(): StudentItem[] {
+  if (typeof window === 'undefined') return INITIAL_STUDENTS
+  try {
+    const raw = localStorage.getItem(STUDENTS_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch (err) {
+    console.warn('Failed to load students from localStorage:', err)
+  }
+  return INITIAL_STUDENTS
+}
+
+function saveStoredStudents(list: StudentItem[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(STUDENTS_STORAGE_KEY, JSON.stringify(list))
+    window.dispatchEvent(new CustomEvent('eaglets_students_updated', { detail: list }))
+  } catch (err) {
+    console.warn('Failed to save students to localStorage:', err)
+  }
+}
 
 interface ParsedImportRow {
   index: number
@@ -35,9 +67,10 @@ export default function StudentsPage() {
   const canEdit = hasPermission('edit_students')
   const canDelete = hasPermission('delete_students')
 
-  const [students, setStudents] = useState<StudentItem[]>(INITIAL_STUDENTS)
+  const [students, setStudents] = useState<StudentItem[]>(() => INITIAL_STUDENTS)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClass, setSelectedClass] = useState('ALL')
+  const [selectedSection, setSelectedSection] = useState('ALL')
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isChallanModalOpen, setIsChallanModalOpen] = useState(false)
@@ -62,72 +95,104 @@ export default function StudentsPage() {
     dob: '',
     gender: 'Male' as 'Male' | 'Female',
     father_name: '',
+    guardian_name: '',
+    family_id: '',
     father_cnic: '',
     contact_phone: '',
     whatsapp_no: '',
-    class_name: 'Grade 10 - Science A (Rose)',
-    section: 'Science A (Rose)',
+    class_name: 'Grade 10',
+    section: 'Section A',
     address: '',
     previous_school: '',
   })
 
-  // Load from Supabase if connected
+  // Load from LocalStorage and Supabase if connected
   useEffect(() => {
-    const supabase = createClient()
-    if (!supabase) return
+    setStudents(getStoredStudents())
 
-    const loadStudents = async () => {
-      try {
-        const { data, error } = await supabase.from('students').select('*').order('created_at', { ascending: false })
-        if (!error && data && data.length > 0) {
-          setStudents(data as StudentItem[])
-        }
-      } catch (err) {
-        console.warn('Falling back to local data:', err)
-      }
+    const handleUpdate = (e: any) => {
+      if (e?.detail) setStudents(e.detail)
+      else setStudents(getStoredStudents())
     }
 
-    loadStudents()
+    window.addEventListener('eaglets_students_updated', handleUpdate)
+    window.addEventListener('storage', handleUpdate)
+
+    const supabase = createClient()
+    if (supabase) {
+      const loadStudents = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('students')
+            .select('*')
+            .order('created_at', { ascending: false })
+          if (!error && data && data.length > 0) {
+            setStudents(data as StudentItem[])
+            saveStoredStudents(data as StudentItem[])
+          }
+        } catch (err) {
+          console.warn('Falling back to local data:', err)
+        }
+      }
+      loadStudents()
+    }
+
+    return () => {
+      window.removeEventListener('eaglets_students_updated', handleUpdate)
+      window.removeEventListener('storage', handleUpdate)
+    }
   }, [])
 
   // Filtered Students
   const filteredStudents = students.filter((s) => {
+    const q = searchQuery.toLowerCase().trim()
     const matchesSearch =
-      s.student_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.roll_no.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.b_form.includes(searchQuery) ||
-      s.father_name.toLowerCase().includes(searchQuery.toLowerCase())
+      !q ||
+      s.student_name.toLowerCase().includes(q) ||
+      (s.roll_no && s.roll_no.toLowerCase().includes(q)) ||
+      (s.admission_no && s.admission_no.toLowerCase().includes(q)) ||
+      (s.b_form && s.b_form.includes(q)) ||
+      (s.father_name && s.father_name.toLowerCase().includes(q)) ||
+      (s.guardian_name && s.guardian_name.toLowerCase().includes(q)) ||
+      (s.family_id && s.family_id.toLowerCase().includes(q)) ||
+      (s.contact_phone && s.contact_phone.includes(q))
 
     const matchesClass =
-      selectedClass === 'ALL' || (s.class_name && s.class_name.includes(selectedClass))
+      selectedClass === 'ALL' ||
+      (s.class_name && s.class_name.toLowerCase().includes(selectedClass.toLowerCase()))
 
-    return matchesSearch && matchesClass
+    const matchesSection =
+      selectedSection === 'ALL' ||
+      (s.section && s.section.toLowerCase().includes(selectedSection.toLowerCase())) ||
+      (s.class_name && s.class_name.toLowerCase().includes(selectedSection.toLowerCase()))
+
+    return matchesSearch && matchesClass && matchesSection
   })
 
-  // CSV Export
+  // CSV Export with exact requested columns
   const handleExportCSV = () => {
     const headers = [
-      'Admission No',
-      'Roll No',
+      'Serial Number',
       'Student Name',
-      'B-Form',
-      'Father Name',
-      'Father CNIC',
-      'Contact Phone',
       'Class',
       'Section',
+      'Student ID',
+      'Family ID',
+      'Guardian Name',
+      'Contact Number',
+      'Gender',
       'Status',
     ]
-    const rows = filteredStudents.map((s) => [
-      s.admission_no,
-      s.roll_no,
+    const rows = filteredStudents.map((s, idx) => [
+      idx + 1,
       `"${s.student_name}"`,
-      s.b_form,
-      `"${s.father_name}"`,
-      s.father_cnic,
+      `"${s.class_name ? (s.class_name.includes(' - ') ? s.class_name.split(' - ')[0] : s.class_name) : 'Grade 10'}"`,
+      `"${s.section || 'Section A'}"`,
+      s.roll_no || s.admission_no,
+      s.family_id || `FAM-${1000 + idx + 1}`,
+      `"${s.guardian_name || s.father_name || ''}"`,
       s.contact_phone,
-      `"${s.class_name || ''}"`,
-      s.section,
+      s.gender,
       s.status,
     ])
     const csvContent =
@@ -137,7 +202,10 @@ export default function StudentsPage() {
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement('a')
     link.setAttribute('href', encodedUri)
-    link.setAttribute('download', `Eaglets_Students_Roster_${new Date().toISOString().slice(0, 10)}.csv`)
+    link.setAttribute(
+      'download',
+      `Eaglets_Students_Roster_${new Date().toISOString().slice(0, 10)}.csv`
+    )
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -148,6 +216,8 @@ export default function StudentsPage() {
     const headers = [
       'full_name',
       'father_name',
+      'guardian_name',
+      'family_id',
       'b_form_number',
       'gender',
       'dob_yyyy_mm_dd',
@@ -164,11 +234,13 @@ export default function StudentsPage() {
       [
         'Muhammad Hamza',
         'Nadeem Akhtar',
+        'Nadeem Akhtar',
+        'FAM-1042',
         '35202-8491021-3',
         'Male',
         '2010-06-15',
         'Grade 10',
-        'Science A (Rose)',
+        'Section A',
         '+923001234567',
         'House 14-B Model Town, Lahore',
         'Beaconhouse School System',
@@ -179,30 +251,34 @@ export default function StudentsPage() {
       [
         'Ayesha Tariq',
         'Tariq Mehmood',
-        '35201-4928172-2',
+        'Tariq Mehmood',
+        'FAM-1088',
+        '35201-9988112-2',
         'Female',
-        '2011-04-20',
+        '2011-03-22',
         'Grade 9',
-        'Girls Daisy',
-        '03007654321',
-        'House 29-C DHA Phase 5, Lahore',
+        'Section B',
+        '+923219871234',
+        'House 88, Faisal Town, Lahore',
         'Lahore Grammar School',
         '14000',
-        'Kinship',
-        '3500',
+        'Sibling',
+        '1400',
       ],
       [
         'Bilal Ali Shah',
         'Syed Ali Shah',
+        'Syed Ali Shah',
+        'FAM-1120',
         '35202-9912831-7',
         'Male',
         '2010-11-08',
-        'Grade 10',
-        'Science B (Tulip)',
+        'Grade 8',
+        'Section C',
         '+923214567890',
         'Ferozepur Road, Lahore',
         'Army Public School',
-        '14000',
+        '11500',
         'None',
         '0',
       ],
@@ -244,7 +320,7 @@ export default function StudentsPage() {
         row.class_grade || row['Class'] || row['class'] || 'Grade 10'
       ).trim()
       const section = String(
-        row.section || row['Section'] || 'Science A (Rose)'
+        row.section || row['Section'] || 'Section A'
       ).trim()
       const parent_phone = String(
         row.parent_phone || row['phone'] || row['contact_phone'] || row['Parent Phone'] || ''
@@ -337,15 +413,19 @@ export default function StudentsPage() {
         contact_phone: row.parent_phone,
         whatsapp_no: row.parent_phone,
         address: row.address || 'Lahore, Pakistan',
-        class_name: `${row.class_grade} - ${row.section}`,
-        section: row.section,
+        class_name: row.class_grade,
+        section: row.section || 'Section A',
         previous_school: row.previous_school,
+        family_id: `FAM-${1000 + students.length + i + 1}`,
+        guardian_name: row.father_name,
         status: 'Active',
         admission_date: new Date().toISOString().slice(0, 10),
       }
     })
 
-    setStudents([...newEnrolled, ...students])
+    const updatedBulk = [...newEnrolled, ...students]
+    setStudents(updatedBulk)
+    saveStoredStudents(updatedBulk)
     setIsBulkModalOpen(false)
     setImportRows([])
     setImportFileName('')
@@ -369,7 +449,8 @@ export default function StudentsPage() {
   // Handle Create Student
   const handleCreateStudent = (e: React.FormEvent) => {
     e.preventDefault()
-    const nextRoll = `EAG-${formData.class_name.includes('10') ? '10' : '09'}-${String(
+    const classNum = formData.class_name.replace(/[^0-9]/g, '') || '01'
+    const nextRoll = `EAG-${classNum.padStart(2, '0')}-${String(
       students.length + 43
     ).padStart(3, '0')}`
     const newStudent: StudentItem = {
@@ -381,18 +462,22 @@ export default function StudentsPage() {
       dob: formData.dob || '2011-01-01',
       gender: formData.gender,
       father_name: formData.father_name,
+      guardian_name: formData.guardian_name || formData.father_name,
+      family_id: formData.family_id || `FAM-${1000 + students.length + 1}`,
       father_cnic: formData.father_cnic,
       contact_phone: formData.contact_phone,
       whatsapp_no: formData.whatsapp_no || formData.contact_phone,
       address: formData.address || 'Lahore, Pakistan',
       class_name: formData.class_name,
-      section: formData.section,
+      section: formData.section || 'Section A',
       previous_school: formData.previous_school,
       status: 'Active',
       admission_date: new Date().toISOString().slice(0, 10),
     }
 
-    setStudents([newStudent, ...students])
+    const updated = [newStudent, ...students]
+    setStudents(updated)
+    saveStoredStudents(updated)
     setIsAddModalOpen(false)
 
     // Sync to Supabase in background if connected
@@ -408,11 +493,13 @@ export default function StudentsPage() {
       dob: '',
       gender: 'Male',
       father_name: '',
+      guardian_name: '',
+      family_id: '',
       father_cnic: '',
       contact_phone: '',
       whatsapp_no: '',
-      class_name: 'Grade 10 - Science A (Rose)',
-      section: 'Science A (Rose)',
+      class_name: 'Grade 10',
+      section: 'Section A',
       address: '',
       previous_school: '',
     })
@@ -430,7 +517,9 @@ export default function StudentsPage() {
     e.preventDefault()
     if (!studentToEdit) return
 
-    setStudents(students.map((s) => (s.id === studentToEdit.id ? studentToEdit : s)))
+    const updated = students.map((s) => (s.id === studentToEdit.id ? studentToEdit : s))
+    setStudents(updated)
+    saveStoredStudents(updated)
     if (selectedStudent?.id === studentToEdit.id) {
       setSelectedStudent(studentToEdit)
     }
@@ -448,6 +537,8 @@ export default function StudentsPage() {
             dob: studentToEdit.dob,
             gender: studentToEdit.gender,
             father_name: studentToEdit.father_name,
+            guardian_name: studentToEdit.guardian_name || studentToEdit.father_name,
+            family_id: studentToEdit.family_id,
             father_cnic: studentToEdit.father_cnic,
             contact_phone: studentToEdit.contact_phone,
             whatsapp_no: studentToEdit.whatsapp_no,
@@ -475,7 +566,9 @@ export default function StudentsPage() {
   const handleConfirmDelete = async () => {
     if (!studentToDelete) return
 
-    setStudents(students.filter((s) => s.id !== studentToDelete.id))
+    const updated = students.filter((s) => s.id !== studentToDelete.id)
+    setStudents(updated)
+    saveStoredStudents(updated)
     if (selectedStudent?.id === studentToDelete.id) {
       setSelectedStudent(null)
       setIsDetailModalOpen(false)
@@ -642,155 +735,297 @@ export default function StudentsPage() {
             onChange={(e) => setSelectedClass(e.target.value)}
             className="h-9 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none cursor-pointer"
           >
-            <option value="ALL">All Classes & Wings</option>
-            {INITIAL_CLASSES.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name} - {c.section}
+            <option value="ALL">All Classes (Playgroup - Grade 10)</option>
+            {CLASS_PRESETS.map((c) => (
+              <option key={c} value={c}>
+                {c}
               </option>
             ))}
           </select>
+
+          <select
+            value={selectedSection}
+            onChange={(e) => setSelectedSection(e.target.value)}
+            className="h-9 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">All Sections (A - D)</option>
+            {SECTION_PRESETS.map((sec) => (
+              <option key={sec} value={sec}>
+                {sec}
+              </option>
+            ))}
+          </select>
+
+          {(selectedClass !== 'ALL' || selectedSection !== 'ALL' || searchQuery) && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedClass('ALL')
+                setSelectedSection('ALL')
+                setSearchQuery('')
+              }}
+              className="h-9 px-2.5 text-xs text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+              title="Reset all filters"
+            >
+              <span className="material-symbols-outlined text-[15px]">filter_alt_off</span>
+              <span>Reset</span>
+            </button>
+          )}
         </div>
 
         <div className="text-xs text-slate-500 self-end md:self-auto font-medium">
-          Showing <strong>{filteredStudents.length}</strong> enrolled students
+          Showing <strong>{filteredStudents.length}</strong> of {students.length} enrolled students
         </div>
       </div>
 
       {/* Student Registry Table */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-left text-xs whitespace-nowrap">
             <thead className="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wider font-semibold border-b border-slate-200">
               <tr>
-                <th className="py-3 px-4">Roll No</th>
+                <th className="py-3 px-3 text-center w-12">Serial Number</th>
                 <th className="py-3 px-3">Student Name</th>
-                <th className="py-3 px-3">B-Form # (NADRA)</th>
-                <th className="py-3 px-3">Father / Contact</th>
-                <th className="py-3 px-3">Class & Section</th>
+                <th className="py-3 px-3">Class</th>
+                <th className="py-3 px-3">Section</th>
+                <th className="py-3 px-3">Student ID</th>
+                <th className="py-3 px-3">Family ID</th>
+                <th className="py-3 px-3">Gaurdian Name</th>
+                <th className="py-3 px-3">Contact Number</th>
                 <th className="py-3 px-3">Gender</th>
                 <th className="py-3 px-3">Status</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
-              {filteredStudents.map((s) => (
-                <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
-                  <td className="py-3 px-4 font-mono font-bold text-[#001639]">
-                    {s.roll_no}
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[#001639] text-xs">
-                        {s.student_name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-[#001639]">{s.student_name}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {s.admission_no}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="py-3 px-3 font-mono text-slate-600 text-[11px]">
-                    {s.b_form}
-                  </td>
-                  <td className="py-3 px-3">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-slate-800">{s.father_name}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {s.contact_phone}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-3 font-medium text-slate-700">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[11px] font-semibold">
-                      {s.class_name}
+              {filteredStudents.length === 0 ? (
+                <tr>
+                  <td colSpan={11} className="py-12 text-center text-slate-400">
+                    <span className="material-symbols-outlined text-[36px] block text-slate-300 mb-1">
+                      school
                     </span>
-                  </td>
-                  <td className="py-3 px-3 text-slate-600">{s.gender}</td>
-                  <td className="py-3 px-3">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      {s.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedStudent(s)
-                          setIsDetailModalOpen(true)
-                        }}
-                        className="p-1 text-slate-400 hover:text-[#001639] hover:bg-slate-100 rounded transition-colors cursor-pointer"
-                        title="View Profile"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">
-                          visibility
-                        </span>
-                      </button>
-                      {canEdit ? (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(s)}
-                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
-                          title="Edit Student"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            edit
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          className="p-1 text-slate-300 cursor-not-allowed opacity-40"
-                          title="Disabled: Requires 'edit_students' permission"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            lock
-                          </span>
-                        </button>
-                      )}
-
-                      {canDelete ? (
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDelete(s)}
-                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                          title="Delete Student"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            delete
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled
-                          className="p-1 text-slate-300 cursor-not-allowed opacity-40"
-                          title="Disabled: Requires 'delete_students' permission"
-                        >
-                          <span className="material-symbols-outlined text-[18px]">
-                            lock
-                          </span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedStudent(s)
-                          setIsChallanModalOpen(true)
-                        }}
-                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-[#001639] font-semibold rounded text-[11px] transition-colors cursor-pointer"
-                        title="Fee Challan"
-                      >
-                        Challan
-                      </button>
-                    </div>
+                    No student records match the selected filters.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredStudents.map((s, idx) => {
+                  const initials = s.student_name
+                    ? s.student_name
+                        .split(' ')
+                        .map((n) => n[0])
+                        .slice(0, 2)
+                        .join('')
+                        .toUpperCase()
+                    : 'ST'
+
+                  const cleanClass = s.class_name
+                    ? s.class_name.includes(' - ')
+                      ? s.class_name.split(' - ')[0]
+                      : s.class_name
+                    : 'Grade 10'
+
+                  const cleanSection = s.section || 'Section A'
+                  const familyId = s.family_id || `FAM-${1000 + idx + 1}`
+                  const guardianName = s.guardian_name || s.father_name || 'N/A'
+
+                  return (
+                    <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
+                      {/* 1. Serial Number */}
+                      <td className="py-3 px-3 font-mono font-bold text-slate-500 text-center text-xs">
+                        {idx + 1}
+                      </td>
+
+                      {/* 2. Student Name */}
+                      <td className="py-3 px-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-full bg-[#001639] text-[#f5bc71] flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-2xs">
+                            {initials}
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="font-bold text-[#001639] truncate">
+                              {s.student_name}
+                            </span>
+                            {s.b_form && (
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                B-Form: {s.b_form}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* 3. Class */}
+                      <td className="py-3 px-3">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-800 text-[11px] font-bold border border-slate-200">
+                          {cleanClass}
+                        </span>
+                      </td>
+
+                      {/* 4. Section */}
+                      <td className="py-3 px-3">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                          {cleanSection}
+                        </span>
+                      </td>
+
+                      {/* 5. Student ID */}
+                      <td className="py-3 px-3 font-mono">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-[#001639] text-xs">
+                            {s.roll_no || s.admission_no}
+                          </span>
+                          {s.admission_no && s.roll_no && s.admission_no !== s.roll_no && (
+                            <span className="text-[10px] text-slate-400">
+                              {s.admission_no}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 6. Family ID */}
+                      <td className="py-3 px-3 font-mono">
+                        <span className="inline-flex items-center gap-1 font-bold text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                          <span className="material-symbols-outlined text-[13px] text-amber-600">group</span>
+                          {familyId}
+                        </span>
+                      </td>
+
+                      {/* 7. Gaurdian Name */}
+                      <td className="py-3 px-3">
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-semibold text-slate-800 truncate">
+                            {guardianName}
+                          </span>
+                          {s.father_cnic && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              CNIC: {s.father_cnic}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 8. Contact Number */}
+                      <td className="py-3 px-3 font-mono text-slate-700 font-medium">
+                        {s.contact_phone}
+                      </td>
+
+                      {/* 9. Gender */}
+                      <td className="py-3 px-3">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10.5px] font-semibold ${
+                            s.gender === 'Female'
+                              ? 'bg-pink-50 text-pink-700 border border-pink-200'
+                              : 'bg-sky-50 text-sky-700 border border-sky-200'
+                          }`}
+                        >
+                          {s.gender}
+                        </span>
+                      </td>
+
+                      {/* 10. Status */}
+                      <td className="py-3 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${
+                            s.status === 'Active'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : s.status === 'Suspended'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              s.status === 'Active'
+                                ? 'bg-emerald-500'
+                                : s.status === 'Suspended'
+                                ? 'bg-amber-500'
+                                : 'bg-slate-400'
+                            }`}
+                          ></span>
+                          {s.status}
+                        </span>
+                      </td>
+
+                      {/* 11. Actions */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudent(s)
+                              setIsDetailModalOpen(true)
+                            }}
+                            className="p-1 text-slate-400 hover:text-[#001639] hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                            title="View Profile"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">
+                              visibility
+                            </span>
+                          </button>
+                          {canEdit ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(s)}
+                              className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                              title="Edit Student"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                edit
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="p-1 text-slate-300 cursor-not-allowed opacity-40"
+                              title="Disabled: Requires 'edit_students' permission"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                lock
+                              </span>
+                            </button>
+                          )}
+
+                          {canDelete ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDelete(s)}
+                              className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                              title="Delete Student"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                delete
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="p-1 text-slate-300 cursor-not-allowed opacity-40"
+                              title="Disabled: Requires 'delete_students' permission"
+                            >
+                              <span className="material-symbols-outlined text-[18px]">
+                                lock
+                              </span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudent(s)
+                              setIsChallanModalOpen(true)
+                            }}
+                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-[#001639] font-semibold rounded text-[11px] transition-colors cursor-pointer"
+                            title="Fee Challan"
+                          >
+                            Challan
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -838,7 +1073,7 @@ export default function StudentsPage() {
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Father / Guardian Full Name *
+                Father Full Name *
               </label>
               <input
                 type="text"
@@ -847,8 +1082,38 @@ export default function StudentsPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, father_name: e.target.value })
                 }
-                placeholder="e.g. Tariq Khan"
+                placeholder="e.g. Tariq Mehmood Khan"
                 className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Gaurdian Name
+              </label>
+              <input
+                type="text"
+                value={formData.guardian_name}
+                onChange={(e) =>
+                  setFormData({ ...formData, guardian_name: e.target.value })
+                }
+                placeholder="Defaults to Father Name if blank"
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Family ID (Siblings Grouping)
+              </label>
+              <input
+                type="text"
+                value={formData.family_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, family_id: e.target.value })
+                }
+                placeholder="e.g. FAM-1042 (Auto-generated if left empty)"
+                className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
               />
             </div>
 
@@ -870,7 +1135,7 @@ export default function StudentsPage() {
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Emergency Mobile / WhatsApp *
+                Emergency Contact Number *
               </label>
               <input
                 type="text"
@@ -908,27 +1173,18 @@ export default function StudentsPage() {
                     : formData.class_name
                 }
                 onChange={(e) => {
-                  const newClass = e.target.value
-                  const currentSection = formData.section || 'Science A (Rose)'
                   setFormData({
                     ...formData,
-                    class_name: `${newClass} - ${currentSection}`,
+                    class_name: e.target.value,
                   })
                 }}
-                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-medium"
               >
-                <option value="Grade 10">Grade 10 (Matric Science / Arts)</option>
-                <option value="Grade 9">Grade 9 (Matric Science / Arts)</option>
-                <option value="Grade 8">Grade 8 (Middle / O-Levels Prep)</option>
-                <option value="Grade 7">Grade 7 (Middle Wing)</option>
-                <option value="Grade 6">Grade 6 (Middle Wing)</option>
-                <option value="Grade 5">Grade 5 (Primary Wing)</option>
-                <option value="Grade 4">Grade 4 (Primary Wing)</option>
-                <option value="Grade 3">Grade 3 (Primary Wing)</option>
-                <option value="Grade 2">Grade 2 (Junior Wing)</option>
-                <option value="Grade 1">Grade 1 (Junior Wing)</option>
-                <option value="Prep / KG">Prep / Kindergarten</option>
-                <option value="Nursery">Nursery</option>
+                {CLASS_PRESETS.map((cls) => (
+                  <option key={cls} value={cls}>
+                    {cls}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -936,34 +1192,22 @@ export default function StudentsPage() {
               <label className="block font-semibold text-slate-700 mb-1">
                 Section Assigned *
               </label>
-              <input
-                type="text"
-                required
-                value={formData.section}
+              <select
+                value={formData.section || 'Section A'}
                 onChange={(e) => {
-                  const newSection = e.target.value
-                  const baseClass = formData.class_name.includes(' - ')
-                    ? formData.class_name.split(' - ')[0]
-                    : formData.class_name
                   setFormData({
                     ...formData,
-                    section: newSection,
-                    class_name: `${baseClass} - ${newSection}`,
+                    section: e.target.value,
                   })
                 }}
-                placeholder="e.g. Science A (Rose)"
-                list="quick-section-options"
-                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-              />
-              <datalist id="quick-section-options">
-                <option value="Science A (Rose)" />
-                <option value="Science B (Tulip)" />
-                <option value="Science (Jasmine)" />
-                <option value="Cambridge (Lily)" />
-                <option value="General (Daisy)" />
-                <option value="Section Bluebell" />
-                <option value="Section Iris" />
-              </datalist>
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-medium"
+              >
+                {SECTION_PRESETS.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -1070,36 +1314,54 @@ export default function StudentsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-xl">
               <div>
-                <span className="text-slate-400 block font-semibold">Father Name:</span>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Student ID / Roll No:</span>
+                <span className="font-mono font-bold text-[#001639]">
+                  {selectedStudent.roll_no || selectedStudent.admission_no}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Family ID:</span>
+                <span className="font-mono font-bold text-amber-800">
+                  {selectedStudent.family_id || 'FAM-1042'}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Gaurdian Name:</span>
+                <span className="font-bold text-slate-800">
+                  {selectedStudent.guardian_name || selectedStudent.father_name}
+                </span>
+              </div>
+              <div>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Father Name:</span>
                 <span className="font-bold text-slate-800">
                   {selectedStudent.father_name}
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 block font-semibold">Father CNIC:</span>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Father CNIC:</span>
                 <span className="font-mono text-slate-800">
                   {selectedStudent.father_cnic}
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 block font-semibold">Contact Phone:</span>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Contact Phone:</span>
                 <span className="font-mono text-slate-800">
                   {selectedStudent.contact_phone}
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 block font-semibold">Date of Birth:</span>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Date of Birth:</span>
                 <span className="text-slate-800">{selectedStudent.dob}</span>
               </div>
               <div>
-                <span className="text-slate-400 block font-semibold">Gender:</span>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Gender:</span>
                 <span className="text-slate-800">{selectedStudent.gender}</span>
               </div>
               <div>
-                <span className="text-slate-400 block font-semibold">Address:</span>
-                <span className="text-slate-800">{selectedStudent.address}</span>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Address:</span>
+                <span className="text-slate-800 truncate block">{selectedStudent.address}</span>
               </div>
             </div>
 
@@ -1218,7 +1480,7 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Father / Guardian Name *
+                  Father Full Name *
                 </label>
                 <input
                   type="text"
@@ -1228,6 +1490,36 @@ export default function StudentsPage() {
                     setStudentToEdit({ ...studentToEdit, father_name: e.target.value })
                   }
                   className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Gaurdian Name
+                </label>
+                <input
+                  type="text"
+                  value={studentToEdit.guardian_name || ''}
+                  onChange={(e) =>
+                    setStudentToEdit({ ...studentToEdit, guardian_name: e.target.value })
+                  }
+                  placeholder="Defaults to Father Name if blank"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Family ID (Siblings Grouping)
+                </label>
+                <input
+                  type="text"
+                  value={studentToEdit.family_id || ''}
+                  onChange={(e) =>
+                    setStudentToEdit({ ...studentToEdit, family_id: e.target.value })
+                  }
+                  placeholder="e.g. FAM-1042"
+                  className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
                 />
               </div>
 
@@ -1289,27 +1581,18 @@ export default function StudentsPage() {
                       : studentToEdit.class_name || 'Grade 10'
                   }
                   onChange={(e) => {
-                    const newClass = e.target.value
-                    const currentSection = studentToEdit.section || 'Science A (Rose)'
                     setStudentToEdit({
                       ...studentToEdit,
-                      class_name: `${newClass} - ${currentSection}`,
+                      class_name: e.target.value,
                     })
                   }}
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-medium"
                 >
-                  <option value="Grade 10">Grade 10 (Matric Science / Arts)</option>
-                  <option value="Grade 9">Grade 9 (Matric Science / Arts)</option>
-                  <option value="Grade 8">Grade 8 (Middle / O-Levels Prep)</option>
-                  <option value="Grade 7">Grade 7 (Middle Wing)</option>
-                  <option value="Grade 6">Grade 6 (Middle Wing)</option>
-                  <option value="Grade 5">Grade 5 (Primary Wing)</option>
-                  <option value="Grade 4">Grade 4 (Primary Wing)</option>
-                  <option value="Grade 3">Grade 3 (Primary Wing)</option>
-                  <option value="Grade 2">Grade 2 (Junior Wing)</option>
-                  <option value="Grade 1">Grade 1 (Junior Wing)</option>
-                  <option value="Prep / KG">Prep / Kindergarten</option>
-                  <option value="Nursery">Nursery</option>
+                  {CLASS_PRESETS.map((cls) => (
+                    <option key={cls} value={cls}>
+                      {cls}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1317,35 +1600,22 @@ export default function StudentsPage() {
                 <label className="block font-semibold text-slate-700 mb-1">
                   Section Assigned *
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={studentToEdit.section || ''}
+                <select
+                  value={studentToEdit.section || 'Section A'}
                   onChange={(e) => {
-                    const newSection = e.target.value
-                    const currentClass = studentToEdit.class_name || 'Grade 10'
-                    const baseClass = currentClass.includes(' - ')
-                      ? currentClass.split(' - ')[0]
-                      : currentClass
                     setStudentToEdit({
                       ...studentToEdit,
-                      section: newSection,
-                      class_name: `${baseClass} - ${newSection}`,
+                      section: e.target.value,
                     })
                   }}
-                  placeholder="e.g. Science A (Rose), Girls Daisy, Cambridge (Lily)"
-                  list="edit-section-options"
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-                />
-                <datalist id="edit-section-options">
-                  <option value="Science A (Rose)" />
-                  <option value="Science B (Tulip)" />
-                  <option value="Science (Jasmine)" />
-                  <option value="Cambridge (Lily)" />
-                  <option value="General (Daisy)" />
-                  <option value="Section Bluebell" />
-                  <option value="Section Iris" />
-                </datalist>
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-medium"
+                >
+                  {SECTION_PRESETS.map((sec) => (
+                    <option key={sec} value={sec}>
+                      {sec}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
