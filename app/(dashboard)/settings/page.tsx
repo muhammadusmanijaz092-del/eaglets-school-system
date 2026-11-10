@@ -5,10 +5,14 @@ import Modal from '@/components/Modal'
 import { useRootAdmin } from '@/lib/admin-store'
 import { useFacultyStore, DESIGNATION_PRESETS } from '@/lib/faculty-store'
 import { FacultyItem } from '@/lib/supabase/types'
+import { useRBAC } from '@/lib/rbac-store'
+import Link from 'next/link'
 
 export default function SettingsPage() {
   const { admin, updateAdmin } = useRootAdmin()
   const { faculty: facultyList, upsertFaculty } = useFacultyStore()
+  const { hasPermission, currentUser, isRootAdmin, switchToRootAdmin } = useRBAC()
+  const canView = hasPermission('view_settings') || isRootAdmin
   const [schoolName, setSchoolName] = useState('Eaglets Schools')
   const [campusName, setCampusName] = useState('Main Boys Campus, Lahore')
   const [academicSession, setAcademicSession] = useState('Session 2026–2027')
@@ -172,6 +176,39 @@ export default function SettingsPage() {
     setEditingFaculty(null)
   }
 
+  if (!canView) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shadow-inner">
+            <span className="material-symbols-outlined text-[36px]">admin_panel_settings</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 bg-red-100/60 px-2.5 py-0.5 rounded-full inline-block mx-auto">
+              Permission Required
+            </span>
+            <h1 className="font-domine text-2xl font-bold text-[#001639] mt-2">
+              Settings & Configuration Restricted
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your active designation (<strong className="text-slate-800">{currentUser.designation}</strong>) does not have permission to view or modify System Settings.
+            </p>
+          </div>
+          {!isRootAdmin && (
+            <button
+              type="button"
+              onClick={switchToRootAdmin}
+              className="mt-2 w-full h-9 bg-slate-100 hover:bg-slate-200 text-[#001639] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#f5bc71]">shield_person</span>
+              <span>Switch to Root Admin Session</span>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6 min-w-0 text-xs text-slate-800">
       {/* Top Banner */}
@@ -192,14 +229,27 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleSave}
-          type="button"
-          className="h-9 px-4 bg-[#001639] hover:bg-[#122b54] text-white font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
-        >
-          <span className="material-symbols-outlined text-[17px]">save</span>
-          <span>Save Changes</span>
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {isRootAdmin && (
+            <Link
+              href="/access-control"
+              className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer transition-colors"
+              title="Open Hidden Access Control Panel (Root Only)"
+            >
+              <span className="material-symbols-outlined text-[17px] text-[#f5bc71]">security</span>
+              <span>Access Control Panel</span>
+            </Link>
+          )}
+
+          <button
+            onClick={handleSave}
+            type="button"
+            className="h-9 px-4 bg-[#001639] hover:bg-[#122b54] text-white font-bold rounded-lg shadow-sm flex items-center gap-1.5 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[17px]">save</span>
+            <span>Save Changes</span>
+          </button>
+        </div>
       </div>
 
       {/* Global Root Admin Status Banner */}

@@ -4,23 +4,68 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useRootAdmin } from '@/lib/admin-store'
+import { useRBAC, PermissionId } from '@/lib/rbac-store'
 
 interface NavItem {
   label: string
   href: string
   icon: string
   badge?: string
+  requiredPermission?: PermissionId
+  rootOnly?: boolean
 }
 
 const navItems: NavItem[] = [
   { label: 'Dashboard Overview', href: '/', icon: 'grid_view' },
-  { label: 'Student Admissions & Profiles', href: '/students', icon: 'school' },
-  { label: 'Faculty Hiring & Payroll', href: '/faculty', icon: 'badge' },
-  { label: 'Fee & Finance (PKR Challans)', href: '/finance', icon: 'payments' },
-  { label: 'Daily Attendance', href: '/attendance', icon: 'fact_check' },
-  { label: 'Timetable, Syllabus & Diary', href: '/academics', icon: 'menu_book' },
-  { label: 'Examination & Result Cards', href: '/examinations', icon: 'assignment_turned_in' },
-  { label: 'Settings & Access Control', href: '/settings', icon: 'admin_panel_settings' },
+  {
+    label: 'Student Admissions & Profiles',
+    href: '/students',
+    icon: 'school',
+    requiredPermission: 'view_students',
+  },
+  {
+    label: 'Faculty Hiring & Payroll',
+    href: '/faculty',
+    icon: 'badge',
+    requiredPermission: 'view_faculty',
+  },
+  {
+    label: 'Fee & Finance (PKR Challans)',
+    href: '/finance',
+    icon: 'payments',
+    requiredPermission: 'view_finance',
+  },
+  {
+    label: 'Daily Attendance',
+    href: '/attendance',
+    icon: 'fact_check',
+    requiredPermission: 'view_attendance',
+  },
+  {
+    label: 'Timetable, Syllabus & Diary',
+    href: '/academics',
+    icon: 'menu_book',
+    requiredPermission: 'manage_academics',
+  },
+  {
+    label: 'Examination & Result Cards',
+    href: '/examinations',
+    icon: 'assignment_turned_in',
+    requiredPermission: 'manage_examinations',
+  },
+  {
+    label: 'Settings & Accreditation',
+    href: '/settings',
+    icon: 'admin_panel_settings',
+    requiredPermission: 'view_settings',
+  },
+  {
+    label: 'Access Control Panel',
+    href: '/access-control',
+    icon: 'security',
+    badge: 'Root Only',
+    rootOnly: true,
+  },
 ]
 
 interface SidebarProps {
@@ -31,6 +76,30 @@ interface SidebarProps {
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { admin, initials } = useRootAdmin()
+  const { currentUser, isRootAdmin, hasPermission, switchToRootAdmin } = useRBAC()
+
+  // Filter navigation links based on permissions & Root Admin status
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.rootOnly) {
+      return isRootAdmin
+    }
+    if (item.requiredPermission) {
+      return hasPermission(item.requiredPermission)
+    }
+    return true
+  })
+
+  // Display details depending on active session
+  const displayName = isRootAdmin ? admin.name : currentUser.name
+  const displayRole = isRootAdmin ? 'Global Root Admin' : currentUser.designation
+  const displayInitials = isRootAdmin
+    ? initials
+    : displayName
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
 
   return (
     <aside
@@ -96,7 +165,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation Items (Scrollable Middle Section) */}
       <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1 overscroll-contain">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive =
             item.href === '/'
               ? pathname === '/'
@@ -118,7 +187,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               </span>
               <span className="truncate">{item.label}</span>
               {item.badge && (
-                <span className="ml-auto text-[10px] px-1.5 py-0.2 rounded-full bg-[#b3272c] text-white">
+                <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-[#b3272c] text-white">
                   {item.badge}
                 </span>
               )}
@@ -127,44 +196,64 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Principal Profile & Logout Footer (Pinned Bottom) */}
-      <div className="flex-shrink-0 p-3.5 border-t border-white/10 bg-[#001639]/70">
-        <Link
-          href="/settings"
-          onClick={onClose}
-          className="flex items-center justify-between mb-2.5 group cursor-pointer"
-          title="Click to view & edit Root Admin profile & credentials"
-        >
+      {/* User Profile & Session Footer (Pinned Bottom) */}
+      <div className="flex-shrink-0 p-3.5 border-t border-white/10 bg-[#001639]/70 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-[#b3272c] group-hover:bg-[#88131b] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm transition-colors">
-              {initials}
+            <div
+              className={`w-8 h-8 rounded-full text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm ${
+                isRootAdmin ? 'bg-[#b3272c]' : 'bg-[#001639] border border-blue-400'
+              }`}
+            >
+              {displayInitials}
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="text-xs text-white truncate font-bold group-hover:text-[#f5bc71] transition-colors">
-                {admin.name}
+              <span className="text-xs text-white truncate font-bold">
+                {displayName}
               </span>
-              <span className="text-[10px] text-[#f5bc71] truncate font-medium flex items-center gap-0.5">
-                <span className="material-symbols-outlined text-[11px]">verified_user</span>
-                Global Root Admin
+              <span
+                className={`text-[10px] truncate font-medium flex items-center gap-0.5 ${
+                  isRootAdmin ? 'text-[#f5bc71]' : 'text-slate-300'
+                }`}
+              >
+                {isRootAdmin && (
+                  <span className="material-symbols-outlined text-[11px]">verified_user</span>
+                )}
+                {displayRole}
               </span>
             </div>
           </div>
-          <span className="text-[#7d93c2] text-[10px] flex items-center gap-1 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 flex-shrink-0">
+
+          <span className="text-[10px] flex items-center gap-1 bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 flex-shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
             Online
           </span>
-        </Link>
+        </div>
+
+        {/* Quick Return to Root Admin when simulating a restricted staff account */}
+        {!isRootAdmin && (
+          <button
+            type="button"
+            onClick={switchToRootAdmin}
+            className="w-full h-7 bg-[#b3272c] hover:bg-[#88131b] text-white rounded-md text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+            title="Return to Global Root Administrator session"
+          >
+            <span className="material-symbols-outlined text-[14px] text-[#f5bc71]">shield_person</span>
+            <span>Switch to Root Admin</span>
+          </button>
+        )}
 
         <Link
           href="/login"
           onClick={onClose}
-          className="w-full h-8 bg-white/5 hover:bg-[#b3272c] text-[#f5bc71] hover:text-white border border-white/10 hover:border-transparent rounded-lg flex items-center justify-center gap-1.5 font-semibold text-xs transition-colors cursor-pointer"
+          className="w-full h-7 bg-white/5 hover:bg-white/10 text-[#7d93c2] hover:text-white border border-white/10 rounded-md flex items-center justify-center gap-1 font-semibold text-[11px] transition-colors cursor-pointer"
         >
-          <span className="material-symbols-outlined text-[15px]">logout</span>
-          <span>Switch Role / Logout</span>
+          <span className="material-symbols-outlined text-[14px]">logout</span>
+          <span>Switch User / Login</span>
         </Link>
       </div>
     </aside>
   )
 }
+
 

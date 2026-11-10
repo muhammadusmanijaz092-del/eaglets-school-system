@@ -5,8 +5,11 @@ import Modal from '@/components/Modal'
 import PrintableResultCard from '@/components/PrintableResultCard'
 import { INITIAL_EXAM_RESULTS, INITIAL_STUDENTS } from '@/lib/mock-data'
 import { ExamResultRow } from '@/lib/supabase/types'
+import { useRBAC } from '@/lib/rbac-store'
 
 export default function ExaminationsPage() {
+  const { hasPermission, currentUser, isRootAdmin, switchToRootAdmin } = useRBAC()
+  const canManage = hasPermission('manage_examinations')
   const [activeSubTab, setActiveSubTab] = useState<'datesheet' | 'spreadsheet' | 'resultcard'>('resultcard')
   const [selectedStudent, setSelectedStudent] = useState(INITIAL_STUDENTS[0])
   const [resultsData, setResultsData] = useState<ExamResultRow[]>(INITIAL_EXAM_RESULTS)
@@ -127,6 +130,39 @@ export default function ExaminationsPage() {
       grade: 'B',
     },
   ]
+
+  if (!canManage) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shadow-inner">
+            <span className="material-symbols-outlined text-[36px]">assignment_turned_in</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 bg-red-100/60 px-2.5 py-0.5 rounded-full inline-block mx-auto">
+              Permission Required
+            </span>
+            <h1 className="font-domine text-2xl font-bold text-[#001639] mt-2">
+              Examinations Portal Restricted
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your active designation (<strong className="text-slate-800">{currentUser.designation}</strong>) does not have permission to access Examination Date Sheets, Gazette Rosters, or Printable Report Cards.
+            </p>
+          </div>
+          {!isRootAdmin && (
+            <button
+              type="button"
+              onClick={switchToRootAdmin}
+              className="mt-2 w-full h-9 bg-slate-100 hover:bg-slate-200 text-[#001639] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#f5bc71]">shield_person</span>
+              <span>Switch to Root Admin Session</span>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6 min-w-0">

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { INITIAL_STUDENTS, INITIAL_FACULTY } from '@/lib/mock-data'
 import { useRootAdmin } from '@/lib/admin-store'
+import { useRBAC, CurrentUser } from '@/lib/rbac-store'
 
 interface TopBarProps {
   onMenuToggle?: () => void
@@ -15,9 +16,15 @@ interface TopBarProps {
 export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: TopBarProps) {
   const router = useRouter()
   const { admin, initials } = useRootAdmin()
+  const { currentUser, isRootAdmin, hasPermission, switchToRootAdmin, switchUser } = useRBAC()
   const [selectedCampus, setSelectedCampus] = useState('Main Boys Campus, Lahore')
   const [isCommandOpen, setIsCommandOpen] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
+  const [isUserSwitcherOpen, setIsUserSwitcherOpen] = useState(false)
+
+  // Permissions checks for quick actions
+  const canCreateStudent = hasPermission('create_students')
+  const canManageFinance = hasPermission('manage_finance')
 
   // Global Ctrl+K Listener
   useEffect(() => {
@@ -135,62 +142,218 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
 
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {onNewAdmission ? (
+            {/* + New Admission (RBAC Protected) */}
+            {canCreateStudent ? (
+              onNewAdmission ? (
+                <button
+                  type="button"
+                  onClick={onNewAdmission}
+                  className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
+                  title="New Admission"
+                >
+                  <span className="material-symbols-outlined text-[16px] sm:text-[17px]">person_add</span>
+                  <span className="hidden sm:inline">+ New Admission</span>
+                </button>
+              ) : (
+                <Link
+                  href="/students"
+                  className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
+                  title="New Admission"
+                >
+                  <span className="material-symbols-outlined text-[16px] sm:text-[17px]">person_add</span>
+                  <span className="hidden sm:inline">+ New Admission</span>
+                </Link>
+              )
+            ) : (
               <button
                 type="button"
-                onClick={onNewAdmission}
-                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
-                title="New Admission"
+                disabled
+                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-slate-100 text-slate-400 text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 cursor-not-allowed border border-slate-200 opacity-60"
+                title="Action Disabled: Your role lacks 'create_students' permission."
               >
-                <span className="material-symbols-outlined text-[16px] sm:text-[17px]">person_add</span>
+                <span className="material-symbols-outlined text-[16px] text-slate-400">lock</span>
                 <span className="hidden sm:inline">+ New Admission</span>
               </button>
-            ) : (
-              <Link
-                href="/students"
-                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
-                title="New Admission"
-              >
-                <span className="material-symbols-outlined text-[16px] sm:text-[17px]">person_add</span>
-                <span className="hidden sm:inline">+ New Admission</span>
-              </Link>
             )}
 
-            {onRecordFee ? (
+            {/* + Record Fee (RBAC Protected) */}
+            {canManageFinance ? (
+              onRecordFee ? (
+                <button
+                  type="button"
+                  onClick={onRecordFee}
+                  className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
+                  title="Record Fee"
+                >
+                  <span className="material-symbols-outlined text-[16px] sm:text-[17px]">receipt_long</span>
+                  <span className="hidden sm:inline">+ Record Fee</span>
+                </button>
+              ) : (
+                <Link
+                  href="/finance"
+                  className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
+                  title="Record Fee"
+                >
+                  <span className="material-symbols-outlined text-[16px] sm:text-[17px]">receipt_long</span>
+                  <span className="hidden sm:inline">+ Record Fee</span>
+                </Link>
+              )
+            ) : (
               <button
                 type="button"
-                onClick={onRecordFee}
-                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
-                title="Record Fee"
+                disabled
+                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-slate-100 text-slate-400 text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 cursor-not-allowed border border-slate-200 opacity-60"
+                title="Action Disabled: Your role lacks 'manage_finance' permission."
               >
-                <span className="material-symbols-outlined text-[16px] sm:text-[17px]">receipt_long</span>
+                <span className="material-symbols-outlined text-[16px] text-slate-400">lock</span>
                 <span className="hidden sm:inline">+ Record Fee</span>
               </button>
-            ) : (
-              <Link
-                href="/finance"
-                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
-                title="Record Fee"
-              >
-                <span className="material-symbols-outlined text-[16px] sm:text-[17px]">receipt_long</span>
-                <span className="hidden sm:inline">+ Record Fee</span>
-              </Link>
             )}
           </div>
 
-          {/* Notifications & Avatar */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-            {/* Global Root Badge */}
-            <Link
-              href="/settings"
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#001639] text-white text-[11px] font-bold hover:bg-[#b3272c] transition-colors border border-slate-700 shadow-2xs"
-              title="Global Root Access Active"
-            >
-              <span className="material-symbols-outlined text-[13px] text-[#f5bc71]">
-                shield_person
-              </span>
-              <span>Root Admin</span>
-            </Link>
+          {/* Notifications, RBAC Active User Badge & Avatar */}
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-200 relative">
+            {/* If Root Admin: Link to hidden Access Control Panel */}
+            {isRootAdmin ? (
+              <Link
+                href="/access-control"
+                className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#001639] text-white text-[11px] font-bold hover:bg-[#b3272c] transition-colors border border-slate-700 shadow-2xs"
+                title="Click to Open Access Control Panel (Root Only)"
+              >
+                <span className="material-symbols-outlined text-[13px] text-[#f5bc71]">
+                  security
+                </span>
+                <span>Access Control</span>
+              </Link>
+            ) : (
+              <div className="hidden sm:flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#001639] border border-blue-200 text-[10px] font-bold">
+                  {currentUser.designation}
+                </span>
+                <button
+                  type="button"
+                  onClick={switchToRootAdmin}
+                  className="px-2 py-0.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-[10px] font-bold rounded-full transition-colors cursor-pointer flex items-center gap-1"
+                  title="Switch back to Root Admin"
+                >
+                  <span className="material-symbols-outlined text-[12px]">shield_person</span>
+                  <span>Exit Test</span>
+                </button>
+              </div>
+            )}
+
+            {/* Quick Role Simulation Switcher Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsUserSwitcherOpen(!isUserSwitcherOpen)}
+                className="h-8 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                title="Quick Role Testing Switcher"
+              >
+                <span className="material-symbols-outlined text-[15px] text-[#001639]">
+                  manage_accounts
+                </span>
+                <span className="hidden md:inline">Test Role</span>
+                <span className="material-symbols-outlined text-[14px]">arrow_drop_down</span>
+              </button>
+
+              {isUserSwitcherOpen && (
+                <div className="absolute right-0 top-10 w-64 bg-white rounded-xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 text-xs">
+                  <div className="px-3 py-1.5 border-b border-slate-100 flex items-center justify-between">
+                    <span className="font-bold text-slate-500 text-[10px] uppercase tracking-wider">
+                      Role Test Simulation
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">RBAC Switcher</span>
+                  </div>
+
+                  <div className="p-1 flex flex-col gap-0.5 max-h-72 overflow-y-auto">
+                    {/* Root Admin Option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        switchToRootAdmin()
+                        setIsUserSwitcherOpen(false)
+                      }}
+                      className={`w-full p-2 rounded-lg text-left flex items-center justify-between cursor-pointer transition-colors ${
+                        isRootAdmin
+                          ? 'bg-[#001639] text-white font-bold'
+                          : 'hover:bg-slate-100 text-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-[16px] text-[#f5bc71]">
+                          shield_person
+                        </span>
+                        <div>
+                          <span className="block text-xs leading-tight">Root Administrator</span>
+                          <span className="block text-[10px] text-slate-400">All permissions active</span>
+                        </div>
+                      </div>
+                      {isRootAdmin && <span className="material-symbols-outlined text-[16px]">check</span>}
+                    </button>
+
+                    {/* Pre-defined Roles Options for Quick Testing */}
+                    {[
+                      { name: 'Teacher', sub: 'Attendance, Academics, Exams' },
+                      { name: 'Accountant', sub: 'Fee Ledger, POS settlements' },
+                      { name: 'Front Desk', sub: 'Admissions & Attendance only' },
+                      { name: 'Vice Principal & Administrator', sub: 'Academic Administration' },
+                      { name: 'House keeping', sub: 'Attendance view only' },
+                    ].map((roleItem) => {
+                      const isActive =
+                        !isRootAdmin && currentUser.designation.toLowerCase() === roleItem.name.toLowerCase()
+
+                      return (
+                        <button
+                          key={roleItem.name}
+                          type="button"
+                          onClick={() => {
+                            const simulatedUser: CurrentUser = {
+                              id: `test-${roleItem.name.toLowerCase().replace(/\s+/g, '-')}`,
+                              name: `Test ${roleItem.name}`,
+                              username: `test.${roleItem.name.toLowerCase().replace(/\s+/g, '.')}`,
+                              designation: roleItem.name,
+                              isRoot: false,
+                            }
+                            switchUser(simulatedUser)
+                            setIsUserSwitcherOpen(false)
+                          }}
+                          className={`w-full p-2 rounded-lg text-left flex items-center justify-between cursor-pointer transition-colors ${
+                            isActive
+                              ? 'bg-blue-600 text-white font-bold'
+                              : 'hover:bg-slate-100 text-slate-800'
+                          }`}
+                        >
+                          <div>
+                            <span className="block text-xs leading-tight font-semibold">
+                              {roleItem.name}
+                            </span>
+                            <span
+                              className={`block text-[10px] ${
+                                isActive ? 'text-blue-100' : 'text-slate-400'
+                              }`}
+                            >
+                              {roleItem.sub}
+                            </span>
+                          </div>
+                          {isActive && <span className="material-symbols-outlined text-[16px]">check</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <div className="p-2 border-t border-slate-100 text-center">
+                    <Link
+                      href="/access-control"
+                      onClick={() => setIsUserSwitcherOpen(false)}
+                      className="text-[11px] text-[#001639] hover:underline font-bold"
+                    >
+                      Open Full Access Control Panel →
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <button
               type="button"
@@ -201,11 +364,18 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
               <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#b3272c]"></span>
             </button>
             <Link
-              href="/settings"
+              href={isRootAdmin ? '/access-control' : '/settings'}
               className="w-8 h-8 rounded-full bg-[#001639] flex items-center justify-center text-white text-xs font-bold hover:ring-2 hover:ring-[#b3272c] transition-all flex-shrink-0"
-              title={`Global Root Profile (${admin.name}) • Click to Edit Credentials`}
+              title={`${currentUser.name} (${currentUser.designation})`}
             >
-              {initials}
+              {isRootAdmin
+                ? initials
+                : currentUser.name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .slice(0, 2)
+                    .join('')
+                    .toUpperCase()}
             </Link>
           </div>
         </div>

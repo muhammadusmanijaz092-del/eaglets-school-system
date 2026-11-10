@@ -10,8 +10,14 @@ import {
 } from '@/lib/mock-data'
 import { FeeInvoiceItem } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
+import { useRBAC } from '@/lib/rbac-store'
 
 export default function FinancePage() {
+  const { hasPermission, currentUser, isRootAdmin, switchToRootAdmin } = useRBAC()
+  const canView = hasPermission('view_finance')
+  const canManage = hasPermission('manage_finance')
+  const canPrint = hasPermission('print_finance')
+
   const [invoices, setInvoices] = useState<FeeInvoiceItem[]>(INITIAL_INVOICES)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'All' | 'Paid' | 'Unpaid' | 'Arrears'>('All')
@@ -184,6 +190,39 @@ export default function FinancePage() {
     setTimeout(() => setBatchGeneratedNotice(false), 5000)
   }
 
+  if (!canView) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shadow-inner">
+            <span className="material-symbols-outlined text-[36px]">payments</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 bg-red-100/60 px-2.5 py-0.5 rounded-full inline-block mx-auto">
+              Permission Required
+            </span>
+            <h1 className="font-domine text-2xl font-bold text-[#001639] mt-2">
+              Finance & Ledger Restricted
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your active designation (<strong className="text-slate-800">{currentUser.designation}</strong>) does not have permission to view the Fee & Finance Ledger.
+            </p>
+          </div>
+          {!isRootAdmin && (
+            <button
+              type="button"
+              onClick={switchToRootAdmin}
+              className="mt-2 w-full h-9 bg-slate-100 hover:bg-slate-200 text-[#001639] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#f5bc71]">shield_person</span>
+              <span>Switch to Root Admin Session</span>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6 min-w-0">
       {/* Top Banner */}
@@ -208,21 +247,40 @@ export default function FinancePage() {
           <button
             type="button"
             onClick={handleBatchGenerate}
-            className="h-9 px-3.5 bg-slate-50 hover:bg-slate-100 text-[#001639] border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+            disabled={!canManage}
+            className={`h-9 px-3.5 border text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs ${
+              canManage
+                ? 'bg-slate-50 hover:bg-slate-100 text-[#001639] border-slate-200 cursor-pointer'
+                : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+            }`}
+            title={canManage ? 'Batch Issue Invoices' : 'Action Disabled: Requires manage_finance permission'}
           >
             <span className="material-symbols-outlined text-[17px] text-[#f5bc71]">
               bolt
             </span>
             <span>Batch Issue (October 2026)</span>
           </button>
-          <button
-            type="button"
-            onClick={() => handleOpenPayment(invoices[0])}
-            className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[17px]">receipt_long</span>
-            <span>+ Record Fee Payment</span>
-          </button>
+
+          {canManage ? (
+            <button
+              type="button"
+              onClick={() => handleOpenPayment(invoices[0])}
+              className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[17px]">receipt_long</span>
+              <span>+ Record Fee Payment</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="h-9 px-3.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-60"
+              title="Action Disabled: Requires 'manage_finance' permission"
+            >
+              <span className="material-symbols-outlined text-[17px]">lock</span>
+              <span>+ Record Fee Payment</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -551,46 +609,82 @@ export default function FinancePage() {
                     {/* Actions */}
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedInvoice(inv)
-                            setIsChallanModalOpen(true)
-                          }}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-[#001639] font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1"
-                          title="View 3-Part Bank Challan"
-                        >
-                          <span className="material-symbols-outlined text-[13px] text-[#f5bc71]">
-                            receipt
-                          </span>
-                          <span>3-Part Slip</span>
-                        </button>
-
-                        {inv.status === 'Unpaid' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenPayment(inv)}
-                            className="px-2.5 py-1 bg-[#b3272c] hover:bg-[#88131b] text-white font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
-                          >
-                            <span className="material-symbols-outlined text-[13px]">
-                              point_of_sale
-                            </span>
-                            <span>Settle</span>
-                          </button>
-                        ) : (
+                        {canPrint ? (
                           <button
                             type="button"
                             onClick={() => {
                               setSelectedInvoice(inv)
-                              setIsThermalModalOpen(true)
+                              setIsChallanModalOpen(true)
                             }}
-                            className="px-2 py-1 bg-slate-800 hover:bg-black text-white font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-[#001639] font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                            title="View 3-Part Bank Challan"
                           >
-                            <span className="material-symbols-outlined text-[13px]">
-                              print
+                            <span className="material-symbols-outlined text-[13px] text-[#f5bc71]">
+                              receipt
                             </span>
-                            <span>POS Slip</span>
+                            <span>3-Part Slip</span>
                           </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="px-2.5 py-1 bg-slate-100 text-slate-400 font-bold rounded text-[11px] cursor-not-allowed opacity-50 flex items-center gap-1"
+                            title="Disabled: Requires 'print_finance' permission"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">lock</span>
+                            <span>3-Part Slip</span>
+                          </button>
+                        )}
+
+                        {inv.status === 'Unpaid' ? (
+                          canManage ? (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPayment(inv)}
+                              className="px-2.5 py-1 bg-[#b3272c] hover:bg-[#88131b] text-white font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">
+                                point_of_sale
+                              </span>
+                              <span>Settle</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="px-2.5 py-1 bg-slate-100 text-slate-400 font-bold rounded text-[11px] cursor-not-allowed opacity-50 flex items-center gap-1"
+                              title="Disabled: Requires 'manage_finance' permission"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">lock</span>
+                              <span>Settle</span>
+                            </button>
+                          )
+                        ) : (
+                          canPrint ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedInvoice(inv)
+                                setIsThermalModalOpen(true)
+                              }}
+                              className="px-2 py-1 bg-slate-800 hover:bg-black text-white font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">
+                                print
+                              </span>
+                              <span>POS Slip</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled
+                              className="px-2 py-1 bg-slate-100 text-slate-400 font-bold rounded text-[11px] cursor-not-allowed opacity-50 flex items-center gap-1"
+                              title="Disabled: Requires 'print_finance' permission"
+                            >
+                              <span className="material-symbols-outlined text-[13px]">lock</span>
+                              <span>POS Slip</span>
+                            </button>
+                          )
                         )}
                       </div>
                     </td>

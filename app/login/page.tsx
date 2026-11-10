@@ -4,11 +4,13 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRootAdmin } from '@/lib/admin-store'
+import { useRBAC, getDefaultRootUser, CurrentUser } from '@/lib/rbac-store'
 
 export default function LoginPage() {
   const router = useRouter()
   const { admin } = useRootAdmin()
-  const [role, setRole] = useState<'admin' | 'faculty' | 'finance' | 'parent'>('admin')
+  const { switchUser } = useRBAC()
+  const [role, setRole] = useState<'admin' | 'faculty' | 'finance' | 'frontdesk'>('admin')
   const [email, setEmail] = useState('admin')
   const [password, setPassword] = useState('Password@2026')
   const [isLoading, setIsLoading] = useState(false)
@@ -23,6 +25,36 @@ export default function LoginPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+
+    // Set RBAC active user session
+    if (role === 'admin') {
+      switchUser(getDefaultRootUser())
+    } else if (role === 'faculty') {
+      switchUser({
+        id: 'f-teacher',
+        name: 'Engr. Masood Ahmad',
+        username: email || 'masood.ahmad',
+        designation: 'Teacher',
+        isRoot: false,
+      })
+    } else if (role === 'finance') {
+      switchUser({
+        id: 'f-finance',
+        name: 'Muhammad Kashif',
+        username: email || 'kashif.accounts',
+        designation: 'Accountant',
+        isRoot: false,
+      })
+    } else if (role === 'frontdesk') {
+      switchUser({
+        id: 'f-frontdesk',
+        name: 'Admissions Desk',
+        username: email || 'frontdesk',
+        designation: 'Front Desk',
+        isRoot: false,
+      })
+    }
+
     setTimeout(() => {
       router.push('/')
     }, 600)
@@ -55,10 +87,10 @@ export default function LoginPage() {
         {/* Role Selector */}
         <div className="grid grid-cols-4 gap-1 p-1 bg-slate-100 rounded-lg text-xs font-semibold">
           {[
-            { id: 'admin', label: 'Admin' },
+            { id: 'admin', label: 'Root Admin' },
             { id: 'faculty', label: 'Teacher' },
-            { id: 'finance', label: 'Finance' },
-            { id: 'parent', label: 'Parent' },
+            { id: 'finance', label: 'Accountant' },
+            { id: 'frontdesk', label: 'Front Desk' },
           ].map((item) => (
             <button
               key={item.id}
@@ -77,12 +109,12 @@ export default function LoginPage() {
                   setEmail('accounts')
                   setPassword('Password@2026')
                 }
-                if (item.id === 'parent') {
-                  setEmail('tariq.butt')
+                if (item.id === 'frontdesk') {
+                  setEmail('frontdesk')
                   setPassword('Password@2026')
                 }
               }}
-              className={`py-1.5 rounded transition-all cursor-pointer ${
+              className={`py-1.5 rounded transition-all cursor-pointer text-center truncate ${
                 role === item.id
                   ? 'bg-white text-[#001639] font-bold shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'

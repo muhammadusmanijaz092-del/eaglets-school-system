@@ -7,6 +7,7 @@ import PrintableChallan from '@/components/PrintableChallan'
 import { INITIAL_STUDENTS, INITIAL_CLASSES, INITIAL_INVOICES } from '@/lib/mock-data'
 import { StudentItem } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
+import { useRBAC } from '@/lib/rbac-store'
 
 interface ParsedImportRow {
   index: number
@@ -28,6 +29,12 @@ interface ParsedImportRow {
 }
 
 export default function StudentsPage() {
+  const { hasPermission, currentUser, isRootAdmin, switchToRootAdmin } = useRBAC()
+  const canView = hasPermission('view_students')
+  const canCreate = hasPermission('create_students')
+  const canEdit = hasPermission('edit_students')
+  const canDelete = hasPermission('delete_students')
+
   const [students, setStudents] = useState<StudentItem[]>(INITIAL_STUDENTS)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClass, setSelectedClass] = useState('ALL')
@@ -488,6 +495,39 @@ export default function StudentsPage() {
     setStudentToDelete(null)
   }
 
+  if (!canView) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shadow-inner">
+            <span className="material-symbols-outlined text-[36px]">lock</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 bg-red-100/60 px-2.5 py-0.5 rounded-full inline-block mx-auto">
+              Permission Required
+            </span>
+            <h1 className="font-domine text-2xl font-bold text-[#001639] mt-2">
+              Student Records Access Restricted
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your active designation (<strong className="text-slate-800">{currentUser.designation}</strong>) does not have permission to view Student Admissions & Profiles.
+            </p>
+          </div>
+          {!isRootAdmin && (
+            <button
+              type="button"
+              onClick={switchToRootAdmin}
+              className="mt-2 w-full h-9 bg-slate-100 hover:bg-slate-200 text-[#001639] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#f5bc71]">shield_person</span>
+              <span>Switch to Root Admin Session</span>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6 min-w-0">
       {/* Top Banner */}
@@ -517,22 +557,48 @@ export default function StudentsPage() {
             <span className="material-symbols-outlined text-[17px]">download</span>
             <span>Export CSV</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setIsBulkModalOpen(true)}
-            className="h-9 px-3.5 bg-[#122b54] hover:bg-[#001639] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[17px] text-[#f5bc71]">upload_file</span>
-            <span>Bulk Import Students</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[17px]">person_add</span>
-            <span>+ Quick Admission Form</span>
-          </button>
+
+          {canCreate ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsBulkModalOpen(true)}
+                className="h-9 px-3.5 bg-[#122b54] hover:bg-[#001639] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[17px] text-[#f5bc71]">upload_file</span>
+                <span>Bulk Import Students</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[17px]">person_add</span>
+                <span>+ Quick Admission Form</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled
+                className="h-9 px-3.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-60"
+                title="Action Disabled: Requires 'create_students' permission."
+              >
+                <span className="material-symbols-outlined text-[17px]">lock</span>
+                <span>Bulk Import Students</span>
+              </button>
+              <button
+                type="button"
+                disabled
+                className="h-9 px-3.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-60"
+                title="Action Disabled: Requires 'create_students' permission."
+              >
+                <span className="material-symbols-outlined text-[17px]">lock</span>
+                <span>+ Quick Admission Form</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -663,26 +729,53 @@ export default function StudentsPage() {
                           visibility
                         </span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(s)}
-                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
-                        title="Edit Student"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">
-                          edit
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDelete(s)}
-                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
-                        title="Delete Student"
-                      >
-                        <span className="material-symbols-outlined text-[18px]">
-                          delete
-                        </span>
-                      </button>
+                      {canEdit ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEdit(s)}
+                          className="p-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                          title="Edit Student"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            edit
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="p-1 text-slate-300 cursor-not-allowed opacity-40"
+                          title="Disabled: Requires 'edit_students' permission"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            lock
+                          </span>
+                        </button>
+                      )}
+
+                      {canDelete ? (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenDelete(s)}
+                          className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                          title="Delete Student"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            delete
+                          </span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="p-1 text-slate-300 cursor-not-allowed opacity-40"
+                          title="Disabled: Requires 'delete_students' permission"
+                        >
+                          <span className="material-symbols-outlined text-[18px]">
+                            lock
+                          </span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => {

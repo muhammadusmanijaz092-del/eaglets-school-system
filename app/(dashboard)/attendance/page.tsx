@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { INITIAL_STUDENTS, INITIAL_FACULTY, INITIAL_CLASSES } from '@/lib/mock-data'
+import { useRBAC } from '@/lib/rbac-store'
 
 type AttendanceStatus = 'Present' | 'Absent' | 'Late' | 'Leave'
 
@@ -15,6 +16,10 @@ interface RosterRow {
 }
 
 export default function AttendancePage() {
+  const { hasPermission, currentUser, isRootAdmin, switchToRootAdmin } = useRBAC()
+  const canView = hasPermission('view_attendance')
+  const canMark = hasPermission('mark_attendance')
+
   const [entityType, setEntityType] = useState<'Student' | 'Faculty'>('Student')
   const [selectedDate, setSelectedDate] = useState('2026-09-16')
   const [selectedClass, setSelectedClass] = useState('Grade 10 - Science A (Rose)')
@@ -82,6 +87,39 @@ export default function AttendancePage() {
   const leaveCount = currentRoster.filter((r) => r.status === 'Leave').length
   const attendanceRate = ((presentCount / currentRoster.length) * 100).toFixed(1)
 
+  if (!canView) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shadow-inner">
+            <span className="material-symbols-outlined text-[36px]">fact_check</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 bg-red-100/60 px-2.5 py-0.5 rounded-full inline-block mx-auto">
+              Permission Required
+            </span>
+            <h1 className="font-domine text-2xl font-bold text-[#001639] mt-2">
+              Attendance Records Restricted
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your active designation (<strong className="text-slate-800">{currentUser.designation}</strong>) does not have permission to view Daily Attendance.
+            </p>
+          </div>
+          {!isRootAdmin && (
+            <button
+              type="button"
+              onClick={switchToRootAdmin}
+              className="mt-2 w-full h-9 bg-slate-100 hover:bg-slate-200 text-[#001639] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#f5bc71]">shield_person</span>
+              <span>Switch to Root Admin Session</span>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6 min-w-0">
       {/* Top Banner */}
@@ -103,24 +141,49 @@ export default function AttendancePage() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            type="button"
-            onClick={handleMarkAllPresent}
-            className="h-9 px-3.5 bg-slate-50 hover:bg-slate-100 text-[#001639] border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[17px] text-emerald-600">
-              done_all
-            </span>
-            <span>Mark All Present</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleSendAbsenteeSMS}
-            className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[17px]">sms</span>
-            <span>Send Absent SMS to Parents</span>
-          </button>
+          {canMark ? (
+            <>
+              <button
+                type="button"
+                onClick={handleMarkAllPresent}
+                className="h-9 px-3.5 bg-slate-50 hover:bg-slate-100 text-[#001639] border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[17px] text-emerald-600">
+                  done_all
+                </span>
+                <span>Mark All Present</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleSendAbsenteeSMS}
+                className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[17px]">sms</span>
+                <span>Send Absent SMS to Parents</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled
+                className="h-9 px-3.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-60"
+                title="Action Disabled: Requires 'mark_attendance' permission"
+              >
+                <span className="material-symbols-outlined text-[17px]">lock</span>
+                <span>Mark All Present</span>
+              </button>
+              <button
+                type="button"
+                disabled
+                className="h-9 px-3.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-60"
+                title="Action Disabled: Requires 'mark_attendance' permission"
+              >
+                <span className="material-symbols-outlined text-[17px]">lock</span>
+                <span>Send Absent SMS to Parents</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -304,14 +367,18 @@ export default function AttendancePage() {
                         <button
                           key={btn.id}
                           type="button"
+                          disabled={!canMark}
                           onClick={() =>
-                            handleStatusChange(row.id, btn.id as AttendanceStatus)
+                            canMark && handleStatusChange(row.id, btn.id as AttendanceStatus)
                           }
-                          className={`px-3 py-1 rounded text-[11px] border transition-all cursor-pointer ${
+                          className={`px-3 py-1 rounded text-[11px] border transition-all ${
+                            canMark ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                          } ${
                             row.status === btn.id
                               ? `${btn.active} shadow-2xs`
                               : `${btn.color} hover:opacity-80`
                           }`}
+                          title={canMark ? `Mark ${btn.id}` : "Disabled: Requires 'mark_attendance' permission"}
                         >
                           {btn.id}
                         </button>

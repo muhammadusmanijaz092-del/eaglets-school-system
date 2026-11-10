@@ -5,6 +5,7 @@ import Modal from '@/components/Modal'
 import { FacultyItem } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
 import { useFacultyStore, DESIGNATION_PRESETS } from '@/lib/faculty-store'
+import { useRBAC } from '@/lib/rbac-store'
 
 const ALL_CLASS_OPTIONS = [
   'Playgroup',
@@ -23,6 +24,10 @@ const ALL_CLASS_OPTIONS = [
 ]
 
 export default function FacultyPage() {
+  const { hasPermission, currentUser, isRootAdmin, switchToRootAdmin } = useRBAC()
+  const canView = hasPermission('view_faculty')
+  const canManage = hasPermission('manage_faculty')
+
   const { faculty: facultyList, deleteFaculty, upsertFaculty } = useFacultyStore()
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'On Leave' | 'Resigned'>('All')
   const [searchQuery, setSearchQuery] = useState('')
@@ -376,6 +381,39 @@ export default function FacultyPage() {
     setStaffToDelete(null)
   }
 
+  if (!canView) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-red-200 shadow-xl p-8 text-center flex flex-col items-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center shadow-inner">
+            <span className="material-symbols-outlined text-[36px]">badge</span>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-red-600 bg-red-100/60 px-2.5 py-0.5 rounded-full inline-block mx-auto">
+              Permission Required
+            </span>
+            <h1 className="font-domine text-2xl font-bold text-[#001639] mt-2">
+              Faculty Directory Restricted
+            </h1>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Your active designation (<strong className="text-slate-800">{currentUser.designation}</strong>) does not have permission to view the Faculty & Staff Directory.
+            </p>
+          </div>
+          {!isRootAdmin && (
+            <button
+              type="button"
+              onClick={switchToRootAdmin}
+              className="mt-2 w-full h-9 bg-slate-100 hover:bg-slate-200 text-[#001639] rounded-lg font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[16px] text-[#f5bc71]">shield_person</span>
+              <span>Switch to Root Admin Session</span>
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-4 sm:gap-6 min-w-0">
       {/* Top Banner */}
@@ -397,24 +435,49 @@ export default function FacultyPage() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
-          <button
-            type="button"
-            onClick={handleDisbursePayroll}
-            className="h-9 px-3.5 bg-slate-50 hover:bg-slate-100 text-[#001639] border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[17px] text-[#f5bc71]">
-              payments
-            </span>
-            <span>Disburse Monthly Payroll</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsAddModalOpen(true)}
-            className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[17px]">badge</span>
-            <span>+ New Faculty Member</span>
-          </button>
+          {canManage ? (
+            <>
+              <button
+                type="button"
+                onClick={handleDisbursePayroll}
+                className="h-9 px-3.5 bg-slate-50 hover:bg-slate-100 text-[#001639] border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[17px] text-[#f5bc71]">
+                  payments
+                </span>
+                <span>Disburse Monthly Payroll</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="h-9 px-3.5 bg-[#b3272c] hover:bg-[#88131b] text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[17px]">badge</span>
+                <span>+ New Faculty Member</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                disabled
+                className="h-9 px-3.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-60"
+                title="Action Disabled: Requires 'manage_faculty' permission"
+              >
+                <span className="material-symbols-outlined text-[17px]">lock</span>
+                <span>Disburse Monthly Payroll</span>
+              </button>
+              <button
+                type="button"
+                disabled
+                className="h-9 px-3.5 bg-slate-100 text-slate-400 border border-slate-200 text-xs font-semibold rounded-lg flex items-center gap-1.5 cursor-not-allowed opacity-60"
+                title="Action Disabled: Requires 'manage_faculty' permission"
+              >
+                <span className="material-symbols-outlined text-[17px]">lock</span>
+                <span>+ New Faculty Member</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -611,33 +674,64 @@ export default function FacultyPage() {
                         <span className="material-symbols-outlined text-[14px]">receipt_long</span>
                         <span className="hidden sm:inline">Salary Slip</span>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenCredentials(f)}
-                        className="p-1 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors cursor-pointer border border-slate-200"
-                        title="Change Login Credentials (Username & Password)"
-                        aria-label="Change Login Credentials"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">key</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(f)}
-                        className="p-1 text-slate-500 hover:text-[#001639] hover:bg-slate-100 rounded transition-colors cursor-pointer border border-slate-200"
-                        title="Edit Faculty Profile"
-                        aria-label="Edit Faculty Profile"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">edit</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenDelete(f)}
-                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer border border-slate-200"
-                        title="Delete Faculty Profile"
-                        aria-label="Delete Faculty Profile"
-                      >
-                        <span className="material-symbols-outlined text-[16px]">delete</span>
-                      </button>
+                      {canManage ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCredentials(f)}
+                            className="p-1 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors cursor-pointer border border-slate-200"
+                            title="Change Login Credentials (Username & Password)"
+                            aria-label="Change Login Credentials"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">key</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(f)}
+                            className="p-1 text-slate-500 hover:text-[#001639] hover:bg-slate-100 rounded transition-colors cursor-pointer border border-slate-200"
+                            title="Edit Faculty Profile"
+                            aria-label="Edit Faculty Profile"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDelete(f)}
+                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer border border-slate-200"
+                            title="Delete Faculty Profile"
+                            aria-label="Delete Faculty Profile"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">delete</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            disabled
+                            className="p-1 text-slate-300 cursor-not-allowed opacity-40 border border-slate-200 rounded"
+                            title="Disabled: Requires 'manage_faculty' permission"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">lock</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled
+                            className="p-1 text-slate-300 cursor-not-allowed opacity-40 border border-slate-200 rounded"
+                            title="Disabled: Requires 'manage_faculty' permission"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">lock</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled
+                            className="p-1 text-slate-300 cursor-not-allowed opacity-40 border border-slate-200 rounded"
+                            title="Disabled: Requires 'manage_faculty' permission"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">lock</span>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
