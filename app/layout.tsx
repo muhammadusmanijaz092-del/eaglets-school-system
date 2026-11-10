@@ -1,7 +1,14 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Domine, Plus_Jakarta_Sans } from 'next/font/google'
 import localFont from 'next/font/local'
 import './globals.css'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#001639',
+}
 
 const domine = Domine({
   subsets: ['latin'],
@@ -44,6 +51,7 @@ export default function RootLayout({
       className={`${domine.variable} ${plusJakartaSans.variable} ${baldwins.variable} ${aster.variable} h-full antialiased`}
     >
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
         <link
           rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"

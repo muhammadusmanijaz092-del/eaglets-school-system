@@ -16,6 +16,13 @@ export default function FacultyPage() {
   const [disbursedAll, setDisbursedAll] = useState(false)
   const [validationError, setValidationError] = useState<string | null>(null)
 
+  // Edit & Delete Profile State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [staffToEdit, setStaffToEdit] = useState<FacultyItem | null>(null)
+  const [staffToDelete, setStaffToDelete] = useState<FacultyItem | null>(null)
+  const [editValidationError, setEditValidationError] = useState<string | null>(null)
+
   // Registration Form State
   const [formData, setFormData] = useState({
     full_name: '',
@@ -126,6 +133,102 @@ export default function FacultyPage() {
   const handleDisbursePayroll = () => {
     setDisbursedAll(true)
     setTimeout(() => setDisbursedAll(false), 4000)
+  }
+
+  // Open Edit Profile Modal
+  const handleOpenEdit = (staff: FacultyItem) => {
+    setStaffToEdit({ ...staff })
+    setEditValidationError(null)
+    setIsEditModalOpen(true)
+  }
+
+  // Handle Save Edit Profile
+  const handleUpdateFaculty = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!staffToEdit) return
+    setEditValidationError(null)
+
+    // Pakistani CNIC Format Validation: XXXXX-XXXXXXX-X (13 digits with hyphens)
+    const cnicRegex = /^\d{5}-\d{7}-\d{1}$/
+    if (!cnicRegex.test(staffToEdit.cnic.trim())) {
+      setEditValidationError('Invalid CNIC format. Expected standard Pakistani NADRA format: 35201-1234567-1')
+      return
+    }
+
+    // Pakistani Mobile Number Validation
+    const phoneRegex = /^(\+92|03)\d{2}[-\s]?\d{7}$/
+    if (!phoneRegex.test(staffToEdit.phone.trim().replace(/\s+/g, ''))) {
+      setEditValidationError('Invalid Contact Phone format. Expected valid Pakistani mobile: +92 300 1234567 or 03001234567')
+      return
+    }
+
+    setFacultyList(facultyList.map((f) => (f.id === staffToEdit.id ? staffToEdit : f)))
+    if (selectedStaff?.id === staffToEdit.id) {
+      setSelectedStaff(staffToEdit)
+    }
+    setIsEditModalOpen(false)
+
+    // Sync to Supabase in background if connected
+    const supabase = createClient()
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('faculty')
+          .update({
+            full_name: staffToEdit.full_name,
+            cnic: staffToEdit.cnic,
+            phone: staffToEdit.phone,
+            email: staffToEdit.email,
+            campus: staffToEdit.campus,
+            qualification: staffToEdit.qualification,
+            designation: staffToEdit.designation,
+            department: staffToEdit.department,
+            assigned_classes: staffToEdit.assigned_classes,
+            assigned_subjects: staffToEdit.assigned_subjects,
+            joining_date: staffToEdit.joining_date,
+            basic_salary_pkr: Number(staffToEdit.basic_salary_pkr),
+            allowances_pkr: Number(staffToEdit.allowances_pkr),
+            payment_mode: staffToEdit.payment_mode,
+            bank_name: staffToEdit.bank_name,
+            account_number: staffToEdit.account_number,
+            status: staffToEdit.status,
+          })
+          .eq('id', staffToEdit.id)
+        if (error) console.error('Supabase faculty update error:', error)
+      } catch (err) {
+        console.error('Failed to update faculty in cloud:', err)
+      }
+    }
+  }
+
+  // Open Delete Confirmation
+  const handleOpenDelete = (staff: FacultyItem) => {
+    setStaffToDelete(staff)
+    setIsDeleteModalOpen(true)
+  }
+
+  // Handle Confirm Delete
+  const handleConfirmDelete = async () => {
+    if (!staffToDelete) return
+
+    setFacultyList(facultyList.filter((f) => f.id !== staffToDelete.id))
+    if (selectedStaff?.id === staffToDelete.id) {
+      setSelectedStaff(null)
+      setIsSalarySlipModalOpen(false)
+    }
+    setIsDeleteModalOpen(false)
+
+    // Sync to Supabase
+    const supabase = createClient()
+    if (supabase) {
+      try {
+        const { error } = await supabase.from('faculty').delete().eq('id', staffToDelete.id)
+        if (error) console.error('Supabase faculty delete error:', error)
+      } catch (err) {
+        console.error('Failed to delete faculty from cloud:', err)
+      }
+    }
+    setStaffToDelete(null)
   }
 
   return (
@@ -247,7 +350,7 @@ export default function FacultyPage() {
       {/* Filter Bar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="relative min-w-[260px]">
+          <div className="relative w-full sm:w-auto sm:min-w-[260px]">
             <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px]">
               search
             </span>
@@ -345,16 +448,38 @@ export default function FacultyPage() {
                     </span>
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedStaff(f)
-                        setIsSalarySlipModalOpen(true)
-                      }}
-                      className="px-2.5 py-1 bg-[#122b54] hover:bg-[#001639] text-white rounded text-[11px] font-semibold transition-colors cursor-pointer"
-                    >
-                      Salary Slip
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedStaff(f)
+                          setIsSalarySlipModalOpen(true)
+                        }}
+                        className="px-2.5 py-1 bg-[#122b54] hover:bg-[#001639] text-white rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                        title="Generate Official Salary Slip"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">receipt_long</span>
+                        <span className="hidden sm:inline">Salary Slip</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(f)}
+                        className="p-1 text-slate-500 hover:text-[#001639] hover:bg-slate-100 rounded transition-colors cursor-pointer border border-slate-200"
+                        title="Edit Faculty Profile"
+                        aria-label="Edit Faculty Profile"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">edit</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenDelete(f)}
+                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer border border-slate-200"
+                        title="Delete Faculty Profile"
+                        aria-label="Delete Faculty Profile"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">delete</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -703,6 +828,345 @@ export default function FacultyPage() {
                 className="px-3 py-1.5 bg-[#001639] text-white rounded font-bold hover:bg-[#122b54] cursor-pointer"
               >
                 Print Salary Slip
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Faculty Profile Modal */}
+      {staffToEdit && (
+        <Modal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false)
+            setEditValidationError(null)
+          }}
+          title={`Edit Faculty Profile: ${staffToEdit.full_name}`}
+          subtitle={`Employee ID: ${staffToEdit.emp_id} • Update HR & Compensation Records`}
+          maxWidth="3xl"
+        >
+          <form onSubmit={handleUpdateFaculty} className="flex flex-col gap-4 text-xs">
+            {editValidationError && (
+              <div className="p-3 bg-red-50 border border-red-300 rounded-lg text-red-800 text-xs flex items-center gap-2">
+                <span className="material-symbols-outlined text-red-600 text-[18px]">error</span>
+                <span>{editValidationError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={staffToEdit.full_name}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, full_name: e.target.value })}
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Pakistani CNIC (NADRA) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={staffToEdit.cnic}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, cnic: e.target.value })}
+                  placeholder="35201-1234567-1"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Contact Phone (PK Mobile) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={staffToEdit.phone}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, phone: e.target.value })}
+                  placeholder="+92 300 1234567"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Official Email</label>
+                <input
+                  type="email"
+                  value={staffToEdit.email || ''}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, email: e.target.value })}
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Assigned Campus
+                </label>
+                <input
+                  type="text"
+                  value={staffToEdit.campus || ''}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, campus: e.target.value })}
+                  placeholder="Enter Campus Name (e.g. Main Boys Campus, Lahore)"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Designation <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={staffToEdit.designation}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, designation: e.target.value })}
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Department</label>
+                <input
+                  type="text"
+                  value={staffToEdit.department}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, department: e.target.value })}
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Highest Qualification
+                </label>
+                <input
+                  type="text"
+                  value={staffToEdit.qualification || ''}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, qualification: e.target.value })}
+                  placeholder="e.g. M.Phil Physics (PU)"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Assigned Classes (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={staffToEdit.assigned_classes.join(', ')}
+                  onChange={(e) =>
+                    setStaffToEdit({
+                      ...staffToEdit,
+                      assigned_classes: e.target.value.split(',').map((s) => s.trim()),
+                    })
+                  }
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Assigned Subjects (comma separated)
+                </label>
+                <input
+                  type="text"
+                  value={staffToEdit.assigned_subjects.join(', ')}
+                  onChange={(e) =>
+                    setStaffToEdit({
+                      ...staffToEdit,
+                      assigned_subjects: e.target.value.split(',').map((s) => s.trim()),
+                    })
+                  }
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Basic Salary (PKR) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  value={staffToEdit.basic_salary_pkr}
+                  onChange={(e) =>
+                    setStaffToEdit({
+                      ...staffToEdit,
+                      basic_salary_pkr: Number(e.target.value),
+                    })
+                  }
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Monthly Allowances (PKR)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={staffToEdit.allowances_pkr}
+                  onChange={(e) =>
+                    setStaffToEdit({
+                      ...staffToEdit,
+                      allowances_pkr: Number(e.target.value),
+                    })
+                  }
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Payment Channel</label>
+                <select
+                  value={staffToEdit.payment_mode}
+                  onChange={(e) =>
+                    setStaffToEdit({
+                      ...staffToEdit,
+                      payment_mode: e.target.value as 'Cash' | 'Bank Transfer' | 'Raast / Mobile Wallet',
+                    })
+                  }
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                >
+                  <option value="Bank Transfer">Bank Transfer (HBL / Meezan)</option>
+                  <option value="Cash">Cash Disbursement Counter</option>
+                  <option value="Raast / Mobile Wallet">Raast / JazzCash / Nayapay</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Bank Name</label>
+                <input
+                  type="text"
+                  value={staffToEdit.bank_name || ''}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, bank_name: e.target.value })}
+                  placeholder="e.g. Habib Bank Limited"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Account Number / IBAN</label>
+                <input
+                  type="text"
+                  value={staffToEdit.account_number || ''}
+                  onChange={(e) => setStaffToEdit({ ...staffToEdit, account_number: e.target.value })}
+                  placeholder="PK36HABB0000..."
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Employment Status</label>
+                <select
+                  value={staffToEdit.status}
+                  onChange={(e) =>
+                    setStaffToEdit({
+                      ...staffToEdit,
+                      status: e.target.value as 'Active' | 'On Leave' | 'Resigned',
+                    })
+                  }
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                >
+                  <option value="Active">Active</option>
+                  <option value="On Leave">On Leave</option>
+                  <option value="Resigned">Resigned</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200 mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditModalOpen(false)
+                  setEditValidationError(null)
+                }}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 bg-[#001639] hover:bg-[#122b54] text-white rounded-lg font-bold transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[17px]">save</span>
+                <span>Save Profile Changes</span>
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Delete Faculty Profile Confirmation Modal */}
+      {staffToDelete && (
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          title="Delete Faculty Profile"
+          subtitle="Are you sure you want to permanently remove this faculty record?"
+          maxWidth="md"
+        >
+          <div className="flex flex-col gap-4 text-xs">
+            <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-900 flex items-start gap-3">
+              <span className="material-symbols-outlined text-red-600 text-[24px] flex-shrink-0 mt-0.5">
+                warning
+              </span>
+              <div className="flex flex-col gap-1">
+                <span className="font-bold text-sm">Permanent Action Warning</span>
+                <p className="text-red-700">
+                  You are about to delete the employee dossier for{' '}
+                  <strong className="text-red-900">{staffToDelete.full_name}</strong> (
+                  <span className="font-mono font-semibold">{staffToDelete.emp_id}</span>,{' '}
+                  {staffToDelete.designation}). This will remove them from active payroll rosters and attendance allocations.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg flex flex-col gap-1.5 font-mono text-[11px] text-slate-600">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Employee ID:</span>
+                <span className="font-bold text-[#001639]">{staffToDelete.emp_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">CNIC:</span>
+                <span>{staffToDelete.cnic}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Designation & Dept:</span>
+                <span>{staffToDelete.designation} • {staffToDelete.department}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Basic Salary:</span>
+                <span>PKR {staffToDelete.basic_salary_pkr.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-200">
+              <button
+                type="button"
+                onClick={() => setIsDeleteModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold transition-colors cursor-pointer shadow-sm flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[17px]">delete</span>
+                <span>Confirm & Delete Profile</span>
               </button>
             </div>
           </div>

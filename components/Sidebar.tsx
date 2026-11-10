@@ -32,8 +32,11 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
   return (
     <aside
+      aria-label="Main Navigation"
       className={`fixed left-0 top-0 h-screen w-72 max-w-[85vw] bg-[#122b54] text-white z-50 flex flex-col border-r border-slate-700/40 shadow-2xl print:hidden overflow-hidden transition-transform duration-300 ease-in-out ${
-        isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        isOpen
+          ? 'translate-x-0 pointer-events-auto'
+          : '-translate-x-full pointer-events-none lg:pointer-events-auto lg:translate-x-0'
       }`}
     >
       {/* School Crest & Header (Fixed Top) */}

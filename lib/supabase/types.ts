@@ -68,6 +68,7 @@ export interface FacultyItem {
   cnic: string
   phone: string
   email?: string
+  campus?: string
   address?: string
   qualification: string
   designation: string
