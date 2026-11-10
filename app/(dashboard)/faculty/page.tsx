@@ -22,7 +22,7 @@ export default function FacultyPage() {
     cnic: '',
     phone: '',
     email: '',
-    campus: 'Main Boys Campus, Lahore',
+    campus: '',
     qualification: '',
     designation: 'Senior Secondary Teacher',
     department: 'Science',
@@ -108,13 +108,13 @@ export default function FacultyPage() {
       cnic: '',
       phone: '',
       email: '',
-      campus: 'Main Boys Campus, Lahore',
+      campus: '',
       qualification: '',
       designation: 'Senior Secondary Teacher',
       department: 'Science',
       assigned_classes: 'Grade 10, Grade 9',
       assigned_subjects: 'Physics',
-      joining_date: new Date().toISOString().slice(0, 10),
+      joining_date: '2026-09-01',
       basic_salary_pkr: 85000,
       allowances_pkr: 15000,
       payment_mode: 'Bank Transfer',
@@ -433,15 +433,14 @@ export default function FacultyPage() {
               <label className="block font-semibold text-slate-700 mb-1">
                 Assigned Campus *
               </label>
-              <select
+              <input
+                type="text"
+                required
                 value={formData.campus}
                 onChange={(e) => setFormData({ ...formData, campus: e.target.value })}
+                placeholder="Enter Assigned Campus"
                 className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-              >
-                <option value="Main Boys Campus, Lahore">Main Boys Campus, Lahore</option>
-                <option value="Girls Junior Campus">Girls Junior Campus</option>
-                <option value="Gulberg Model Wing">Gulberg Model Wing</option>
-              </select>
+              />
             </div>
 
             <div>
