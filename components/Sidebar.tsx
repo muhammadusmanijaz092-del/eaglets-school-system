@@ -71,6 +71,7 @@ const navItems: NavItem[] = [
 interface SidebarProps {
   isOpen?: boolean
   onClose?: () => void
+  onToggle?: () => void
 }
 
 export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
@@ -107,7 +108,7 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       className={`fixed left-0 top-0 h-screen w-72 max-w-[85vw] bg-[#122b54] text-white z-50 flex flex-col border-r border-slate-700/40 shadow-2xl print:hidden overflow-hidden transition-transform duration-300 ease-in-out ${
         isOpen
           ? 'translate-x-0 pointer-events-auto'
-          : '-translate-x-full pointer-events-none lg:pointer-events-auto lg:translate-x-0'
+          : '-translate-x-full pointer-events-none'
       }`}
     >
       {/* School Crest & Header (Fixed Top) */}
@@ -131,14 +132,15 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             </div>
           </div>
 
-          {/* Close button on mobile */}
+          {/* Collapse button - available on ALL screen sizes */}
           <button
             type="button"
             onClick={onClose}
-            className="lg:hidden p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 cursor-pointer flex-shrink-0"
-            aria-label="Close Navigation"
+            className="p-1.5 text-slate-300 hover:text-white rounded-lg hover:bg-white/10 cursor-pointer flex-shrink-0 transition-colors"
+            aria-label="Collapse Navigation"
+            title="Collapse sidebar (Ctrl+B)"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>
+            <span className="material-symbols-outlined text-[20px]">menu_open</span>
           </button>
         </div>
 

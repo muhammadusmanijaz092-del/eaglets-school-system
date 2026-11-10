@@ -8,12 +8,18 @@ import { useRootAdmin } from '@/lib/admin-store'
 import { useRBAC, CurrentUser } from '@/lib/rbac-store'
 
 interface TopBarProps {
+  isSidebarOpen?: boolean
   onMenuToggle?: () => void
   onNewAdmission?: () => void
   onRecordFee?: () => void
 }
 
-export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: TopBarProps) {
+export default function TopBar({
+  isSidebarOpen = true,
+  onMenuToggle,
+  onNewAdmission,
+  onRecordFee,
+}: TopBarProps) {
   const router = useRouter()
   const { admin, initials } = useRootAdmin()
   const { currentUser, isRootAdmin, hasPermission, switchToRootAdmin, switchUser } = useRBAC()
@@ -73,17 +79,24 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
 
   return (
     <>
-      <header className="fixed top-0 left-0 lg:left-72 right-0 h-16 bg-white/95 backdrop-blur-md z-40 border-b border-slate-200 shadow-[0_1px_4px_rgba(0,22,57,0.04)] flex items-center justify-between px-3 sm:px-6 print:hidden transition-all duration-300 gap-2 sm:gap-4">
-        {/* Left Side: Mobile Menu Button & Search */}
-        <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0 max-w-md">
-          {/* Mobile Hamburger Button */}
+      <header
+        className={`fixed top-0 right-0 h-16 bg-white/95 backdrop-blur-md z-40 border-b border-slate-200 shadow-[0_1px_4px_rgba(0,22,57,0.04)] flex items-center justify-between px-3 sm:px-6 print:hidden transition-all duration-300 gap-2 sm:gap-4 ${
+          isSidebarOpen ? 'left-0 lg:left-72' : 'left-0'
+        }`}
+      >
+        {/* Left Side: Menu Toggle Button & Search */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 max-w-md">
+          {/* Menu Toggle Button - ALWAYS visible on all screen sizes */}
           <button
             type="button"
             onClick={onMenuToggle}
-            className="lg:hidden p-1.5 sm:p-2 -ml-1 text-slate-700 hover:text-[#001639] hover:bg-slate-100 rounded-lg cursor-pointer flex-shrink-0"
+            className="p-1.5 sm:p-2 -ml-1 text-slate-700 hover:text-[#001639] hover:bg-slate-100 rounded-lg cursor-pointer flex-shrink-0 transition-colors"
             aria-label="Toggle Navigation Menu"
+            title={isSidebarOpen ? 'Collapse sidebar (Ctrl+B)' : 'Expand sidebar (Ctrl+B)'}
           >
-            <span className="material-symbols-outlined text-[24px]">menu</span>
+            <span className="material-symbols-outlined text-[24px]">
+              {isSidebarOpen ? 'menu_open' : 'menu'}
+            </span>
           </button>
 
           {/* Mobile Crest Logo */}
@@ -100,7 +113,7 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
           {/* Search Trigger Bar */}
           <div
             onClick={() => setIsCommandOpen(true)}
-            className="relative flex-1 min-w-0 cursor-pointer group"
+            className="relative flex-1 min-w-[130px] sm:min-w-[180px] cursor-pointer group"
           >
             <span className="material-symbols-outlined absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[18px] group-hover:text-[#001639] transition-colors">
               search
@@ -116,9 +129,9 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          {/* Live Date / PKR Banner */}
-          <div className="hidden xl:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
+          {/* Live Date / PKR Banner - Visible on wide 2xl screens */}
+          <div className="hidden 2xl:flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 text-xs">
             <span className="material-symbols-outlined text-[15px] text-[#001639]">
               calendar_today
             </span>
@@ -127,12 +140,12 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
             <span className="font-bold text-[#b3272c]">PKR Live Ledger</span>
           </div>
 
-          {/* Campus Dropdown (Hidden on Small Screens) */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Campus Dropdown - Visible on xl screens */}
+          <div className="hidden xl:flex items-center gap-2 max-w-[180px]">
             <select
               value={selectedCampus}
               onChange={(e) => setSelectedCampus(e.target.value)}
-              className="h-9 px-2.5 bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:border-[#122b54] cursor-pointer"
+              className="h-9 px-2.5 bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:border-[#122b54] cursor-pointer truncate"
             >
               <option value="Main Boys Campus, Lahore">Main Boys Campus, Lahore</option>
               <option value="Girls Junior Campus">Girls Junior Campus</option>
@@ -148,31 +161,33 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
                 <button
                   type="button"
                   onClick={onNewAdmission}
-                  className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
+                  className="h-8 sm:h-9 px-2.5 sm:px-3 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
                   title="New Admission"
                 >
                   <span className="material-symbols-outlined text-[16px] sm:text-[17px]">person_add</span>
-                  <span className="hidden sm:inline">+ New Admission</span>
+                  <span className="hidden xl:inline">+ New Admission</span>
+                  <span className="hidden sm:inline xl:hidden">+ Admission</span>
                 </button>
               ) : (
                 <Link
                   href="/students"
-                  className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
+                  className="h-8 sm:h-9 px-2.5 sm:px-3 bg-[#b3272c] text-white hover:bg-[#88131b] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
                   title="New Admission"
                 >
                   <span className="material-symbols-outlined text-[16px] sm:text-[17px]">person_add</span>
-                  <span className="hidden sm:inline">+ New Admission</span>
+                  <span className="hidden xl:inline">+ New Admission</span>
+                  <span className="hidden sm:inline xl:hidden">+ Admission</span>
                 </Link>
               )
             ) : (
               <button
                 type="button"
                 disabled
-                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-slate-100 text-slate-400 text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 cursor-not-allowed border border-slate-200 opacity-60"
+                className="h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-100 text-slate-400 text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 cursor-not-allowed border border-slate-200 opacity-60"
                 title="Action Disabled: Your role lacks 'create_students' permission."
               >
                 <span className="material-symbols-outlined text-[16px] text-slate-400">lock</span>
-                <span className="hidden sm:inline">+ New Admission</span>
+                <span className="hidden sm:inline">+ Admission</span>
               </button>
             )}
 
@@ -182,31 +197,33 @@ export default function TopBar({ onMenuToggle, onNewAdmission, onRecordFee }: To
                 <button
                   type="button"
                   onClick={onRecordFee}
-                  className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
+                  className="h-8 sm:h-9 px-2.5 sm:px-3 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs cursor-pointer"
                   title="Record Fee"
                 >
                   <span className="material-symbols-outlined text-[16px] sm:text-[17px]">receipt_long</span>
-                  <span className="hidden sm:inline">+ Record Fee</span>
+                  <span className="hidden xl:inline">+ Record Fee</span>
+                  <span className="hidden sm:inline xl:hidden">+ Fee</span>
                 </button>
               ) : (
                 <Link
                   href="/finance"
-                  className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
+                  className="h-8 sm:h-9 px-2.5 sm:px-3 bg-[#122b54] text-white hover:bg-[#001639] text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
                   title="Record Fee"
                 >
                   <span className="material-symbols-outlined text-[16px] sm:text-[17px]">receipt_long</span>
-                  <span className="hidden sm:inline">+ Record Fee</span>
+                  <span className="hidden xl:inline">+ Record Fee</span>
+                  <span className="hidden sm:inline xl:hidden">+ Fee</span>
                 </Link>
               )
             ) : (
               <button
                 type="button"
                 disabled
-                className="h-8 sm:h-9 px-2.5 sm:px-3.5 bg-slate-100 text-slate-400 text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 cursor-not-allowed border border-slate-200 opacity-60"
+                className="h-8 sm:h-9 px-2.5 sm:px-3 bg-slate-100 text-slate-400 text-xs font-semibold rounded-lg flex items-center gap-1 sm:gap-1.5 cursor-not-allowed border border-slate-200 opacity-60"
                 title="Action Disabled: Your role lacks 'manage_finance' permission."
               >
                 <span className="material-symbols-outlined text-[16px] text-slate-400">lock</span>
-                <span className="hidden sm:inline">+ Record Fee</span>
+                <span className="hidden sm:inline">+ Fee</span>
               </button>
             )}
           </div>
