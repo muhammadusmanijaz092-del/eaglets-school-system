@@ -140,12 +140,25 @@
   }
 
   /* Printable Canvas Full Width */
-  .printable-area {
+  .printable-area,
+  .cashout-print-area {
     display: block !important;
     width: 100% !important;
     margin: 0 auto !important;
     box-shadow: none !important;
     border: none !important;
+    padding: 0 !important;
+  }
+
+  /* Modal print adjustments */
+  .fixed.inset-0 {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
   }
 
   .print-page-break {

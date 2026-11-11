@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import Modal from '@/components/Modal'
 import PrintableChallan from '@/components/PrintableChallan'
+import PrintableCashoutReceipt from '@/components/PrintableCashoutReceipt'
 import ThermalReceipt from '@/components/ThermalReceipt'
 import {
   INITIAL_INVOICES,
@@ -12,13 +13,39 @@ import { FeeInvoiceItem } from '@/lib/supabase/types'
 import { createClient } from '@/lib/supabase/client'
 import { useRBAC } from '@/lib/rbac-store'
 
+const INVOICES_STORAGE_KEY = 'eaglets_invoices_v2'
+
+function getStoredInvoices(): FeeInvoiceItem[] {
+  if (typeof window === 'undefined') return INITIAL_INVOICES
+  try {
+    const raw = localStorage.getItem(INVOICES_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch (err) {
+    console.warn('Failed to load invoices from localStorage:', err)
+  }
+  return INITIAL_INVOICES
+}
+
+function saveStoredInvoices(list: FeeInvoiceItem[]): void {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(INVOICES_STORAGE_KEY, JSON.stringify(list))
+    window.dispatchEvent(new CustomEvent('eaglets_invoices_updated', { detail: list }))
+  } catch (err) {
+    console.warn('Failed to save invoices to localStorage:', err)
+  }
+}
+
 export default function FinancePage() {
   const { hasPermission, currentUser, isRootAdmin, switchToRootAdmin } = useRBAC()
   const canView = hasPermission('view_finance')
   const canManage = hasPermission('manage_finance')
   const canPrint = hasPermission('print_finance')
 
-  const [invoices, setInvoices] = useState<FeeInvoiceItem[]>(INITIAL_INVOICES)
+  const [invoices, setInvoices] = useState<FeeInvoiceItem[]>(() => INITIAL_INVOICES)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'All' | 'Paid' | 'Unpaid' | 'Arrears'>('All')
 
@@ -26,8 +53,44 @@ export default function FinancePage() {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false)
   const [isChallanModalOpen, setIsChallanModalOpen] = useState(false)
   const [isThermalModalOpen, setIsThermalModalOpen] = useState(false)
+  const [isCashoutModalOpen, setIsCashoutModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+
   const [selectedInvoice, setSelectedInvoice] = useState<FeeInvoiceItem>(invoices[0])
+  const [cashoutInvoice, setCashoutInvoice] = useState<FeeInvoiceItem | null>(null)
+  const [invoiceToDelete, setInvoiceToDelete] = useState<FeeInvoiceItem | null>(null)
   const [batchGeneratedNotice, setBatchGeneratedNotice] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    setTimeout(() => setToastMessage(null), 4000)
+  }
+
+  // Edit Form State
+  const [editForm, setEditForm] = useState({
+    id: '',
+    challan_no: '',
+    student_name: '',
+    roll_no: '',
+    class_name: '',
+    billing_month: '',
+    issue_date: '',
+    due_date: '',
+    expiry_date: '',
+    tuition_amount_pkr: 0,
+    discount_type: 'None' as 'None' | 'Kinship' | 'Teacher Child' | 'Merit' | 'Orphan' | 'Need-based',
+    concession_amount_pkr: 0,
+    lab_amount_pkr: 0,
+    exam_amount_pkr: 0,
+    development_amount_pkr: 0,
+    library_amount_pkr: 0,
+    arrears_amount_pkr: 0,
+    late_surcharge_pkr: 500,
+    status: 'Unpaid' as 'Unpaid' | 'Paid' | 'Partial' | 'Overdue',
+    paid_amount_pkr: 0,
+  })
 
   // Payment Settlement Form State
   const [paymentChannel, setPaymentChannel] = useState<
@@ -46,26 +109,41 @@ export default function FinancePage() {
     cashier_notes: 'Paid at campus cash counter',
   })
 
-  // Load from Supabase if connected
+  // Load from LocalStorage and Supabase
   useEffect(() => {
-    const supabase = createClient()
-    if (!supabase) return
+    setInvoices(getStoredInvoices())
 
-    const loadInvoices = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('fee_invoices')
-          .select('*')
-          .order('created_at', { ascending: false })
-        if (!error && data && data.length > 0) {
-          setInvoices(data as FeeInvoiceItem[])
-        }
-      } catch (err) {
-        console.warn('Falling back to local invoices:', err)
-      }
+    const handleUpdate = (e: any) => {
+      if (e?.detail) setInvoices(e.detail)
+      else setInvoices(getStoredInvoices())
     }
 
-    loadInvoices()
+    window.addEventListener('eaglets_invoices_updated', handleUpdate)
+    window.addEventListener('storage', handleUpdate)
+
+    const supabase = createClient()
+    if (supabase) {
+      const loadInvoices = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('fee_invoices')
+            .select('*')
+            .order('created_at', { ascending: false })
+          if (!error && data && data.length > 0) {
+            setInvoices(data as FeeInvoiceItem[])
+            saveStoredInvoices(data as FeeInvoiceItem[])
+          }
+        } catch (err) {
+          console.warn('Falling back to local invoices:', err)
+        }
+      }
+      loadInvoices()
+    }
+
+    return () => {
+      window.removeEventListener('eaglets_invoices_updated', handleUpdate)
+      window.removeEventListener('storage', handleUpdate)
+    }
   }, [])
 
   // Aggregate KPI Calculations
@@ -119,6 +197,113 @@ export default function FinancePage() {
     return matchesSearch && matchesStatus
   })
 
+  // Open Cashout 2-Part (A4 Landscape) Modal
+  const handleOpenCashout = (inv: FeeInvoiceItem) => {
+    setCashoutInvoice(inv)
+    setIsCashoutModalOpen(true)
+  }
+
+  // Open Edit Modal
+  const handleOpenEdit = (inv: FeeInvoiceItem) => {
+    setEditForm({
+      id: inv.id,
+      challan_no: inv.challan_no,
+      student_name: inv.student_name || '',
+      roll_no: inv.roll_no || '',
+      class_name: inv.class_name || '',
+      billing_month: inv.billing_month || 'October 2026',
+      issue_date: inv.issue_date || '01-Oct-2026',
+      due_date: inv.due_date || '10-Oct-2026',
+      expiry_date: inv.expiry_date || '20-Oct-2026',
+      tuition_amount_pkr: inv.tuition_amount_pkr || 0,
+      discount_type: (inv.discount_type as any) || 'None',
+      concession_amount_pkr: inv.concession_amount_pkr || 0,
+      lab_amount_pkr: inv.lab_amount_pkr || 0,
+      exam_amount_pkr: inv.exam_amount_pkr || 0,
+      development_amount_pkr: inv.development_amount_pkr || 0,
+      library_amount_pkr: inv.library_amount_pkr || 0,
+      arrears_amount_pkr: inv.arrears_amount_pkr || 0,
+      late_surcharge_pkr: inv.late_surcharge_pkr || 500,
+      status: (inv.status as any) || 'Unpaid',
+      paid_amount_pkr: inv.paid_amount_pkr || 0,
+    })
+    setIsEditModalOpen(true)
+  }
+
+  // Save Edited Invoice
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const baseTuition = Number(editForm.tuition_amount_pkr) || 0
+    const concession = Number(editForm.concession_amount_pkr) || 0
+    const adjustedTuition = Math.max(0, baseTuition - concession)
+    const addlCharges =
+      (Number(editForm.lab_amount_pkr) || 0) +
+      (Number(editForm.exam_amount_pkr) || 0) +
+      (Number(editForm.development_amount_pkr) || 0) +
+      (Number(editForm.library_amount_pkr) || 0)
+    const arrears = Number(editForm.arrears_amount_pkr) || 0
+    const beforeDueDate = adjustedTuition + addlCharges + arrears
+    const lateFee = Number(editForm.late_surcharge_pkr) || 0
+    const afterDueDate = beforeDueDate + lateFee
+    const paid = Number(editForm.paid_amount_pkr) || 0
+    const netBalance = Math.max(0, beforeDueDate - paid)
+
+    const updatedInvoices = invoices.map((inv) => {
+      if (inv.id === editForm.id) {
+        return {
+          ...inv,
+          student_name: editForm.student_name,
+          roll_no: editForm.roll_no,
+          class_name: editForm.class_name,
+          billing_month: editForm.billing_month,
+          issue_date: editForm.issue_date,
+          due_date: editForm.due_date,
+          expiry_date: editForm.expiry_date,
+          tuition_amount_pkr: baseTuition,
+          discount_type: editForm.discount_type,
+          concession_amount_pkr: concession,
+          adjusted_tuition_pkr: adjustedTuition,
+          lab_amount_pkr: Number(editForm.lab_amount_pkr) || 0,
+          exam_amount_pkr: Number(editForm.exam_amount_pkr) || 0,
+          development_amount_pkr: Number(editForm.development_amount_pkr) || 0,
+          library_amount_pkr: Number(editForm.library_amount_pkr) || 0,
+          additional_charges_pkr: addlCharges,
+          arrears_amount_pkr: arrears,
+          total_before_due_date_pkr: beforeDueDate,
+          total_due_pkr: beforeDueDate,
+          late_surcharge_pkr: lateFee,
+          total_after_due_date_pkr: afterDueDate,
+          status: editForm.status,
+          paid_amount_pkr: paid,
+          net_balance_pkr: netBalance,
+        }
+      }
+      return inv
+    })
+
+    setInvoices(updatedInvoices)
+    saveStoredInvoices(updatedInvoices)
+    setIsEditModalOpen(false)
+    showToast(`Invoice ${editForm.challan_no} updated successfully!`)
+  }
+
+  // Open Delete Confirmation Modal
+  const handleOpenDelete = (inv: FeeInvoiceItem) => {
+    setInvoiceToDelete(inv)
+    setIsDeleteModalOpen(true)
+  }
+
+  // Confirm Delete Invoice
+  const handleConfirmDelete = () => {
+    if (!invoiceToDelete) return
+    const updatedInvoices = invoices.filter((inv) => inv.id !== invoiceToDelete.id)
+    setInvoices(updatedInvoices)
+    saveStoredInvoices(updatedInvoices)
+    setIsDeleteModalOpen(false)
+    showToast(`Invoice ${invoiceToDelete.challan_no} permanently deleted!`)
+    setInvoiceToDelete(null)
+  }
+
   // Open Payment Modal with target invoice preloaded
   const handleOpenPayment = (inv: FeeInvoiceItem) => {
     setSelectedInvoice(inv)
@@ -159,7 +344,9 @@ export default function FinancePage() {
     })
 
     setInvoices(updatedInvoices)
+    saveStoredInvoices(updatedInvoices)
     setIsPaymentModalOpen(false)
+    showToast(`Payment of PKR ${enteredAmount.toLocaleString()} recorded!`)
 
     // Sync to Supabase in background
     const supabase = createClient()
@@ -608,7 +795,7 @@ export default function FinancePage() {
 
                     {/* Actions */}
                     <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
                         {canPrint ? (
                           <button
                             type="button"
@@ -633,6 +820,31 @@ export default function FinancePage() {
                           >
                             <span className="material-symbols-outlined text-[13px]">lock</span>
                             <span>3-Part Slip</span>
+                          </button>
+                        )}
+
+                        {/* Cashout 2-Part (A4 Landscape) */}
+                        {canPrint ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCashout(inv)}
+                            className="px-2.5 py-1 bg-[#122b54] hover:bg-[#001639] text-white font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                            title="Cashout 2-Part Copies (A4 Landscape Mode)"
+                          >
+                            <span className="material-symbols-outlined text-[13px] text-amber-300">
+                              payments
+                            </span>
+                            <span>Cashout (2-Part)</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="px-2.5 py-1 bg-slate-100 text-slate-400 font-bold rounded text-[11px] cursor-not-allowed opacity-50 flex items-center gap-1"
+                            title="Disabled: Requires 'print_finance' permission"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">lock</span>
+                            <span>Cashout (2-Part)</span>
                           </button>
                         )}
 
@@ -685,6 +897,52 @@ export default function FinancePage() {
                               <span>POS Slip</span>
                             </button>
                           )
+                        )}
+
+                        {/* Edit Invoice Action */}
+                        {canManage ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(inv)}
+                            className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                            title="Edit Invoice Particulars & Amounts"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">edit</span>
+                            <span>Edit</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="px-2 py-1 bg-slate-100 text-slate-400 font-bold rounded text-[11px] cursor-not-allowed opacity-50 flex items-center gap-1"
+                            title="Requires 'manage_finance' permission"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">lock</span>
+                            <span>Edit</span>
+                          </button>
+                        )}
+
+                        {/* Delete Invoice Action */}
+                        {canManage ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDelete(inv)}
+                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-[#b3272c] border border-rose-200/80 font-bold rounded text-[11px] transition-colors cursor-pointer flex items-center gap-1"
+                            title="Delete Fee Invoice"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">delete</span>
+                            <span>Delete</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled
+                            className="px-2 py-1 bg-slate-100 text-slate-400 font-bold rounded text-[11px] cursor-not-allowed opacity-50 flex items-center gap-1"
+                            title="Requires 'manage_finance' permission"
+                          >
+                            <span className="material-symbols-outlined text-[13px]">lock</span>
+                            <span>Delete</span>
+                          </button>
                         )}
                       </div>
                     </td>
@@ -1033,6 +1291,343 @@ export default function FinancePage() {
             amountPaid={enteredAmount || selectedInvoice.total_before_due_date_pkr || 14500}
           />
         </Modal>
+      )}
+
+      {/* 2-Part Cashout Preview Modal (A4 Landscape) */}
+      {cashoutInvoice && (
+        <Modal
+          isOpen={isCashoutModalOpen}
+          onClose={() => setIsCashoutModalOpen(false)}
+          title="Printable Cashout Voucher (2-Part A4 Landscape)"
+          subtitle={`Challan: ${cashoutInvoice.challan_no} • Student: ${cashoutInvoice.student_name} (${cashoutInvoice.class_name})`}
+          maxWidth="7xl"
+        >
+          <PrintableCashoutReceipt
+            challanNo={cashoutInvoice.challan_no}
+            studentName={cashoutInvoice.student_name}
+            rollNo={cashoutInvoice.roll_no}
+            className={cashoutInvoice.class_name}
+            bForm="35201-8491023-1"
+            billingMonth={cashoutInvoice.billing_month}
+            tuitionFee={cashoutInvoice.tuition_amount_pkr}
+            concessionAmount={cashoutInvoice.concession_amount_pkr}
+            discountType={cashoutInvoice.discount_type}
+            labFund={cashoutInvoice.lab_amount_pkr}
+            examFund={cashoutInvoice.exam_amount_pkr}
+            devFund={cashoutInvoice.development_amount_pkr}
+            libraryFund={cashoutInvoice.library_amount_pkr}
+            arrearsAmount={cashoutInvoice.arrears_amount_pkr}
+            lateFee={cashoutInvoice.late_surcharge_pkr}
+            isLateSettlement={
+              cashoutInvoice.status === 'Paid' &&
+              (cashoutInvoice.paid_amount_pkr || 0) >
+                (cashoutInvoice.total_before_due_date_pkr || cashoutInvoice.total_due_pkr)
+            }
+            paidAmount={
+              cashoutInvoice.status === 'Paid'
+                ? cashoutInvoice.paid_amount_pkr ||
+                  cashoutInvoice.total_before_due_date_pkr ||
+                  cashoutInvoice.total_due_pkr
+                : cashoutInvoice.total_before_due_date_pkr || cashoutInvoice.total_due_pkr
+            }
+            paymentChannel="Cash Desk (Counter #1)"
+          />
+        </Modal>
+      )}
+
+      {/* Edit Fee Invoice Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Edit Invoice ${editForm.challan_no}`}
+        subtitle={`Student: ${editForm.student_name} • Update ledger particulars & amounts`}
+        maxWidth="2xl"
+      >
+        <form onSubmit={handleSaveEdit} className="flex flex-col gap-4 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Student Name</label>
+              <input
+                type="text"
+                required
+                value={editForm.student_name}
+                onChange={(e) => setEditForm({ ...editForm, student_name: e.target.value })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Roll No / ID</label>
+              <input
+                type="text"
+                required
+                value={editForm.roll_no}
+                onChange={(e) => setEditForm({ ...editForm, roll_no: e.target.value })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg font-mono text-xs focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Class & Section</label>
+              <input
+                type="text"
+                required
+                value={editForm.class_name}
+                onChange={(e) => setEditForm({ ...editForm, class_name: e.target.value })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Billing Month</label>
+              <input
+                type="text"
+                required
+                value={editForm.billing_month}
+                onChange={(e) => setEditForm({ ...editForm, billing_month: e.target.value })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+          </div>
+
+          {/* Fee Heads Breakdown */}
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col gap-3">
+            <span className="font-bold text-[#001639] text-xs flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[15px] text-[#f5bc71]">price_change</span>
+              Fee Heads & Concession (PKR)
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block font-medium text-slate-600 mb-1">Base Monthly Tuition</label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={editForm.tuition_amount_pkr}
+                  onChange={(e) => setEditForm({ ...editForm, tuition_amount_pkr: Number(e.target.value) })}
+                  className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg font-mono text-xs"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-slate-600 mb-1">Concession Type</label>
+                <select
+                  value={editForm.discount_type}
+                  onChange={(e) => setEditForm({ ...editForm, discount_type: e.target.value as any })}
+                  className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg text-xs"
+                >
+                  <option value="None">None</option>
+                  <option value="Kinship">Kinship Discount</option>
+                  <option value="Teacher Child">Teacher Child</option>
+                  <option value="Merit">Merit Scholarship</option>
+                  <option value="Orphan">Orphan Concession</option>
+                  <option value="Need-based">Need-based Concession</option>
+                </select>
+              </div>
+              <div>
+                <label className="block font-medium text-slate-600 mb-1">Concession Amount</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.concession_amount_pkr}
+                  onChange={(e) => setEditForm({ ...editForm, concession_amount_pkr: Number(e.target.value) })}
+                  className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg font-mono text-xs text-emerald-700 font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Science Lab Fund</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.lab_amount_pkr}
+                  onChange={(e) => setEditForm({ ...editForm, lab_amount_pkr: Number(e.target.value) })}
+                  className="w-full h-8 px-2 bg-white border border-slate-200 rounded text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Exam & Gazette</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.exam_amount_pkr}
+                  onChange={(e) => setEditForm({ ...editForm, exam_amount_pkr: Number(e.target.value) })}
+                  className="w-full h-8 px-2 bg-white border border-slate-200 rounded text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Development Fund</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.development_amount_pkr}
+                  onChange={(e) => setEditForm({ ...editForm, development_amount_pkr: Number(e.target.value) })}
+                  className="w-full h-8 px-2 bg-white border border-slate-200 rounded text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] text-slate-500 mb-1">Library Fund</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.library_amount_pkr}
+                  onChange={(e) => setEditForm({ ...editForm, library_amount_pkr: Number(e.target.value) })}
+                  className="w-full h-8 px-2 bg-white border border-slate-200 rounded text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-200/60">
+              <div>
+                <label className="block font-medium text-amber-800 mb-1">Prior Unpaid Arrears (PKR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.arrears_amount_pkr}
+                  onChange={(e) => setEditForm({ ...editForm, arrears_amount_pkr: Number(e.target.value) })}
+                  className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg font-mono text-xs text-amber-900 font-bold"
+                />
+              </div>
+              <div>
+                <label className="block font-medium text-[#b3272c] mb-1">Late Surcharge (Post-10th)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.late_surcharge_pkr}
+                  onChange={(e) => setEditForm({ ...editForm, late_surcharge_pkr: Number(e.target.value) })}
+                  className="w-full h-9 px-3 bg-white border border-slate-200 rounded-lg font-mono text-xs text-[#b3272c] font-bold"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Status & Paid Amount */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Payment Status</label>
+              <select
+                value={editForm.status}
+                onChange={(e) => setEditForm({ ...editForm, status: e.target.value as any })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+              >
+                <option value="Unpaid">Unpaid</option>
+                <option value="Paid">Paid</option>
+                <option value="Partial">Partial</option>
+                <option value="Overdue">Overdue</option>
+              </select>
+            </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Amount Paid (PKR)</label>
+              <input
+                type="number"
+                min="0"
+                value={editForm.paid_amount_pkr}
+                onChange={(e) => setEditForm({ ...editForm, paid_amount_pkr: Number(e.target.value) })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg font-mono text-xs font-bold text-[#001639]"
+              />
+            </div>
+          </div>
+
+          {/* Live Calculated Totals Preview */}
+          <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-100 flex items-center justify-between text-xs">
+            <div>
+              <span className="text-slate-500 block text-[10px] uppercase">Total Payable Before 10th</span>
+              <span className="font-mono font-bold text-[#001639] text-sm">
+                PKR {(
+                  Math.max(0, editForm.tuition_amount_pkr - editForm.concession_amount_pkr) +
+                  editForm.lab_amount_pkr +
+                  editForm.exam_amount_pkr +
+                  editForm.development_amount_pkr +
+                  editForm.library_amount_pkr +
+                  editForm.arrears_amount_pkr
+                ).toLocaleString()}
+              </span>
+            </div>
+            <div className="text-right">
+              <span className="text-slate-500 block text-[10px] uppercase">Total After 10th (With Late Fee)</span>
+              <span className="font-mono font-bold text-[#b3272c] text-sm">
+                PKR {(
+                  Math.max(0, editForm.tuition_amount_pkr - editForm.concession_amount_pkr) +
+                  editForm.lab_amount_pkr +
+                  editForm.exam_amount_pkr +
+                  editForm.development_amount_pkr +
+                  editForm.library_amount_pkr +
+                  editForm.arrears_amount_pkr +
+                  editForm.late_surcharge_pkr
+                ).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(false)}
+              className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 cursor-pointer font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2 bg-[#001639] hover:bg-[#122b54] text-white font-bold rounded-lg shadow-sm cursor-pointer flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[16px]">save</span>
+              <span>Save Changes</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Confirm Fee Invoice Deletion"
+        subtitle="This action permanently deletes this billing challan from the school ledger"
+        maxWidth="md"
+      >
+        <div className="flex flex-col gap-4 text-xs">
+          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 flex items-start gap-3">
+            <span className="material-symbols-outlined text-rose-600 text-[24px] flex-shrink-0 mt-0.5">
+              warning
+            </span>
+            <div>
+              <p className="font-bold">Are you sure you want to delete this invoice?</p>
+              <p className="mt-1 text-slate-600 text-[11px] leading-relaxed">
+                Challan <strong>{invoiceToDelete?.challan_no}</strong> for{' '}
+                <strong>{invoiceToDelete?.student_name}</strong> ({invoiceToDelete?.class_name}) will be removed. All associated tuition, arrears, and fee receipts will be updated across aggregate KPI metrics.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsDeleteModalOpen(false)}
+              className="px-4 py-2 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 cursor-pointer font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmDelete}
+              className="px-4 py-2 bg-[#b3272c] hover:bg-[#88131b] text-white font-bold rounded-lg shadow-sm cursor-pointer flex items-center gap-1.5"
+            >
+              <span className="material-symbols-outlined text-[16px]">delete_forever</span>
+              <span>Permanently Delete</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="fixed bottom-5 right-5 z-50 bg-[#001639] text-white px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 text-xs animate-in slide-in-from-bottom duration-200 border border-slate-700">
+          <span className="material-symbols-outlined text-emerald-400 text-[18px]">check_circle</span>
+          <span>{toastMessage}</span>
+        </div>
       )}
     </div>
   )
