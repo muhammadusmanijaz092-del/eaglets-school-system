@@ -13,51 +13,65 @@ interface NavItem {
   badge?: string
   requiredPermission?: PermissionId
   rootOnly?: boolean
+  section?: string
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard Overview', href: '/', icon: 'grid_view' },
+  { label: 'Dashboard Overview', href: '/', icon: 'grid_view', section: 'Overview' },
+  {
+    label: "Today's Activity",
+    href: '/activity',
+    icon: 'monitoring',
+    section: 'Overview',
+  },
   {
     label: 'Student Admissions & Profiles',
     href: '/students',
     icon: 'school',
     requiredPermission: 'view_students',
+    section: 'Management',
   },
   {
     label: 'Faculty Hiring & Payroll',
     href: '/faculty',
     icon: 'badge',
     requiredPermission: 'view_faculty',
+    section: 'Management',
   },
   {
     label: 'Fee & Finance (PKR Challans)',
     href: '/finance',
     icon: 'payments',
     requiredPermission: 'view_finance',
+    section: 'Management',
   },
   {
     label: 'Daily Attendance',
     href: '/attendance',
     icon: 'fact_check',
     requiredPermission: 'view_attendance',
+    section: 'Management',
   },
   {
     label: 'Timetable, Syllabus & Diary',
     href: '/academics',
     icon: 'menu_book',
     requiredPermission: 'manage_academics',
+    section: 'Management',
   },
   {
     label: 'Examination & Result Cards',
     href: '/examinations',
     icon: 'assignment_turned_in',
     requiredPermission: 'manage_examinations',
+    section: 'Management',
   },
   {
     label: 'Settings & Accreditation',
     href: '/settings',
     icon: 'admin_panel_settings',
     requiredPermission: 'view_settings',
+    section: 'Management',
   },
   {
     label: 'Access Control Panel',
@@ -65,6 +79,7 @@ const navItems: NavItem[] = [
     icon: 'security',
     badge: 'Root Only',
     rootOnly: true,
+    section: 'Management',
   },
 ]
 
@@ -167,33 +182,49 @@ export default function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation Items (Scrollable Middle Section) */}
       <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-1 overscroll-contain">
-        {visibleNavItems.map((item) => {
+        {visibleNavItems.map((item, index) => {
+          const isFirstInOverview = index === 0 && item.section === 'Overview'
+          const isFirstInManagement =
+            item.section === 'Management' &&
+            (index === 0 || visibleNavItems[index - 1]?.section !== 'Management')
+
           const isActive =
             item.href === '/'
               ? pathname === '/'
               : pathname?.startsWith(item.href)
 
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onClose}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all text-xs font-medium ${
-                isActive
-                  ? 'bg-white text-[#001639] font-bold shadow-sm border-l-4 border-[#b3272c]'
-                  : 'text-[#7d93c2] hover:bg-[#001639]/50 hover:text-white'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[19px] flex-shrink-0">
-                {item.icon}
-              </span>
-              <span className="truncate">{item.label}</span>
-              {item.badge && (
-                <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-[#b3272c] text-white">
-                  {item.badge}
-                </span>
+            <React.Fragment key={item.href}>
+              {isFirstInOverview && (
+                <div className="px-3 pt-1 pb-1.5 text-[10px] font-bold text-[#7d93c2] uppercase tracking-wider">
+                  Overview
+                </div>
               )}
-            </Link>
+              {isFirstInManagement && (
+                <div className="px-3 pt-3 pb-1.5 text-[10px] font-bold text-[#7d93c2] uppercase tracking-wider">
+                  Management & Academics
+                </div>
+              )}
+              <Link
+                href={item.href}
+                onClick={onClose}
+                className={`flex items-center gap-3 px-3.5 py-2.5 rounded-lg transition-all text-xs font-medium ${
+                  isActive
+                    ? 'bg-white text-[#001639] font-bold shadow-sm border-l-4 border-[#b3272c]'
+                    : 'text-[#7d93c2] hover:bg-[#001639]/50 hover:text-white'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[19px] flex-shrink-0">
+                  {item.icon}
+                </span>
+                <span className="truncate">{item.label}</span>
+                {item.badge && (
+                  <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider bg-[#b3272c] text-white">
+                    {item.badge}
+                  </span>
+                )}
+              </Link>
+            </React.Fragment>
           )
         })}
       </nav>

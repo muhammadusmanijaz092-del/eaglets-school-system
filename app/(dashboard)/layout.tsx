@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
+import WorkspaceTabBar from '@/components/WorkspaceTabBar'
 
 export default function DashboardLayout({
   children,
@@ -104,7 +105,10 @@ export default function DashboardLayout({
           isSidebarOpen={isSidebarOpen}
           onMenuToggle={toggleSidebar}
         />
-        <main className="pt-16 min-h-[calc(100vh-4rem)] overflow-x-hidden min-w-0 w-full">
+        <WorkspaceTabBar
+          isSidebarOpen={isSidebarOpen}
+        />
+        <main className="pt-[104px] min-h-[calc(100vh-6.5rem)] overflow-x-hidden min-w-0 w-full">
           {children}
         </main>
       </div>

@@ -48,6 +48,7 @@ export default function TopBar({
 
   const quickLinks = [
     { label: 'Dashboard Overview', href: '/', icon: 'grid_view' },
+    { label: "Today's Activity", href: '/activity', icon: 'monitoring' },
     { label: 'Student Admissions & Records', href: '/students', icon: 'school' },
     { label: 'Faculty Hiring & Payroll', href: '/faculty', icon: 'badge' },
     { label: 'Fee Finance & PKR Challans', href: '/finance', icon: 'payments' },
