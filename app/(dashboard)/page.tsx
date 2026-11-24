@@ -177,21 +177,19 @@ export default function DashboardOverviewPage() {
       {/* 2. Quick Action Buttons Grid (17 Interactive Buttons) */}
       <QuickActionsGrid onOpenModal={setActiveModal} />
 
-      {/* 3. Daily Summary & Core KPI Cards */}
+      {/* 3. Consolidated Non-Redundant Primary KPI Cards (Campus Real-time Metrics) */}
       <DailySummaryStrip
-        incomeToday={incomeToday}
-        incomeMonth={incomeMonth}
-        expenseToday={expenseToday}
-        expenseMonth={expenseMonth}
-        balanceToday={balanceToday}
-        balanceMonth={balanceMonth}
         studentsPresentCount={studentsPresentCount}
         totalStudents={students.length}
+        boysCount={students.filter((s) => s.gender === 'Male').length}
+        girlsCount={students.filter((s) => s.gender === 'Female').length}
         staffPresentCount={staffPresentCount}
         totalStaff={staff.length}
         staffLateCount={staffLateCount}
         staffAbsentCount={staffAbsentCount}
         collectedToday={collectedToday}
+        recoveredMonth={recoveredMonth}
+        balanceToday={balanceToday}
         unpaidFees={unpaidFees}
         unpaidInvoicesCount={1}
         unpaidStudentsCount={1}

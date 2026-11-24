@@ -23,7 +23,7 @@ export default function TopBar({
   const router = useRouter()
   const { admin, initials } = useRootAdmin()
   const { currentUser, isRootAdmin, hasPermission, switchToRootAdmin, switchUser } = useRBAC()
-  const [selectedCampus, setSelectedCampus] = useState('Main Boys Campus, Lahore')
+  const [selectedCampus, setSelectedCampus] = useState('Zeenat Ilyas Campus, Burewala')
   const [isCommandOpen, setIsCommandOpen] = useState(false)
   const [commandQuery, setCommandQuery] = useState('')
   const [isUserSwitcherOpen, setIsUserSwitcherOpen] = useState(false)
@@ -148,6 +148,7 @@ export default function TopBar({
               onChange={(e) => setSelectedCampus(e.target.value)}
               className="h-9 px-2.5 bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 focus:outline-none focus:border-[#122b54] cursor-pointer truncate"
             >
+              <option value="Zeenat Ilyas Campus, Burewala">Zeenat Ilyas Campus, Burewala</option>
               <option value="Main Boys Campus, Lahore">Main Boys Campus, Lahore</option>
               <option value="Girls Junior Campus">Girls Junior Campus</option>
               <option value="Gulberg Model Wing">Gulberg Model Wing</option>

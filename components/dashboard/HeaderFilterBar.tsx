@@ -62,9 +62,9 @@ export default function HeaderFilterBar({
           <span className="text-slate-400">Updated 8:39 pm</span>
         </div>
 
-        <div className="flex items-center gap-1 text-[11px] text-slate-500">
-          <span className="material-symbols-outlined text-[15px] text-[#f5bc71]">verified</span>
-          <span>Main Boys Campus, Lahore</span>
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200/80 font-medium">
+          <span className="material-symbols-outlined text-[15px] text-[#b4833e]">verified</span>
+          <span className="font-semibold text-slate-800">Zeenat Ilyas Campus, Burewala</span>
         </div>
       </div>
 
