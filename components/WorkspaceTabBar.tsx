@@ -108,12 +108,12 @@ export default function WorkspaceTabBar({
 
   return (
     <div
-      className={`fixed top-16 right-0 h-10 bg-slate-100/90 backdrop-blur-md z-30 border-b border-slate-200/90 flex items-center px-2 sm:px-4 print:hidden transition-all duration-300 gap-1 overflow-x-auto select-none ${
+      className={`fixed top-16 right-0 h-10 bg-white z-30 border-b border-slate-200/90 flex items-center px-3 sm:px-6 print:hidden transition-all duration-300 gap-2 overflow-x-auto select-none ${
         isSidebarOpen ? 'left-0 lg:left-72' : 'left-0'
       }`}
     >
       {/* Scrollable Tab Strip */}
-      <div className="flex items-center gap-1 min-w-0 flex-1 overflow-x-auto py-1 scrollbar-none">
+      <div className="flex items-center gap-4 min-w-0 flex-1 overflow-x-auto h-full scrollbar-none">
         {tabs.map((tab) => {
           const isActive =
             tab.href === '/'
@@ -123,21 +123,14 @@ export default function WorkspaceTabBar({
           return (
             <div
               key={tab.id}
-              className={`group flex items-center gap-1.5 h-8 px-2.5 sm:px-3 text-xs rounded-t-lg transition-all cursor-pointer flex-shrink-0 border-t-2 ${
+              className={`group flex items-center gap-1.5 h-full px-1 text-xs transition-all cursor-pointer flex-shrink-0 relative ${
                 isActive
-                  ? 'bg-white text-[#001639] font-bold border-[#b3272c] shadow-xs border-x border-slate-200'
-                  : 'bg-slate-200/60 text-slate-600 hover:bg-slate-200/90 hover:text-slate-900 border-transparent'
+                  ? 'text-[#001639] font-bold border-b-2 border-blue-600'
+                  : 'text-slate-500 hover:text-slate-800 font-medium border-b-2 border-transparent'
               }`}
               onClick={() => router.push(tab.href)}
             >
-              <span
-                className={`material-symbols-outlined text-[16px] flex-shrink-0 ${
-                  isActive ? 'text-[#b3272c]' : 'text-slate-400 group-hover:text-slate-600'
-                }`}
-              >
-                {tab.icon}
-              </span>
-              <span className="truncate max-w-[120px] sm:max-w-[160px]">
+              <span className="truncate max-w-[130px] sm:max-w-[180px]">
                 {tab.label}
               </span>
 
@@ -145,7 +138,7 @@ export default function WorkspaceTabBar({
                 <button
                   type="button"
                   onClick={(e) => handleCloseTab(e, tab.id)}
-                  className="w-4 h-4 rounded-full hover:bg-slate-200 text-slate-400 hover:text-slate-700 flex items-center justify-center text-[12px] ml-1 transition-colors"
+                  className="w-4 h-4 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center text-[13px] ml-1 transition-colors"
                   title="Close Tab"
                 >
                   &times;
@@ -155,12 +148,15 @@ export default function WorkspaceTabBar({
           )
         })}
 
+        {/* Subtle Separator */}
+        <div className="h-4 w-[1px] bg-slate-200 flex-shrink-0" />
+
         {/* New Tab Button */}
-        <div className="relative flex-shrink-0 ml-1">
+        <div className="relative flex-shrink-0">
           <button
             type="button"
             onClick={() => setIsNewTabMenuOpen((prev) => !prev)}
-            className="h-7 w-7 rounded-md bg-white/70 hover:bg-white text-slate-600 hover:text-[#001639] border border-slate-300/80 flex items-center justify-center transition-all cursor-pointer shadow-2xs"
+            className="w-6 h-6 rounded hover:bg-slate-100 text-slate-400 hover:text-slate-800 flex items-center justify-center transition-all cursor-pointer"
             title="Open New Workspace Tab"
             aria-label="New Tab"
           >
@@ -174,8 +170,8 @@ export default function WorkspaceTabBar({
                 className="fixed inset-0 z-40"
                 onClick={() => setIsNewTabMenuOpen(false)}
               />
-              <div className="absolute left-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-3 py-1 text-[10.5px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
+              <div className="absolute left-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 text-xs">
+                <div className="px-3 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 mb-1">
                   Open Workspace Tab
                 </div>
                 {ALL_AVAILABLE_TABS.map((item) => (
@@ -183,12 +179,12 @@ export default function WorkspaceTabBar({
                     key={item.id}
                     type="button"
                     onClick={() => handleOpenTab(item)}
-                    className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-slate-50 flex items-center gap-2.5 transition-colors cursor-pointer"
+                    className="w-full px-3 py-2 text-left flex items-center gap-2 hover:bg-slate-50 text-slate-700 font-medium transition-colors cursor-pointer"
                   >
-                    <span className="material-symbols-outlined text-[17px] text-[#001639]">
+                    <span className="material-symbols-outlined text-[16px] text-slate-400">
                       {item.icon}
                     </span>
-                    <span className="font-medium text-slate-800">{item.label}</span>
+                    <span>{item.label}</span>
                   </button>
                 ))}
               </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { TimeFilter } from './types'
 
 interface HeaderFilterBarProps {
@@ -13,25 +13,7 @@ export default function HeaderFilterBar({
   activeFilter,
   onFilterChange,
 }: HeaderFilterBarProps) {
-  const [currentTime, setCurrentTime] = useState('08:54:52 PM')
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-    const updateTime = () => {
-      const now = new Date()
-      const timeStr = now.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      })
-      setCurrentTime(timeStr)
-    }
-    updateTime()
-    const timer = setInterval(updateTime, 1000)
-    return () => clearInterval(timer)
-  }, [])
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const filterTabs: { id: TimeFilter; label: string }[] = [
     { id: 'today', label: 'Today' },
@@ -41,46 +23,32 @@ export default function HeaderFilterBar({
     { id: 'custom', label: 'Custom' },
   ]
 
-  return (
-    <div className="flex flex-col gap-3 bg-white p-5 rounded-xl border border-slate-200/90 shadow-xs">
-      {/* Status Metadata Line */}
-      <div className="flex flex-wrap items-center justify-between text-xs text-slate-500 pb-2.5 border-b border-slate-100 gap-2">
-        <div className="flex items-center gap-2 flex-wrap font-mono">
-          <span className="flex items-center gap-1.5 font-semibold text-slate-700">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Monday, November 23
-          </span>
-          <span className="text-slate-300">·</span>
-          <span className="text-slate-600 font-medium">
-            {mounted ? currentTime : '08:54:52 PM'}
-          </span>
-          <span className="text-slate-300">·</span>
-          <span className="px-2 py-0.5 rounded bg-slate-100 text-[#001639] font-sans font-bold text-[11px]">
-            Session 2026-2027
-          </span>
-          <span className="text-slate-300">·</span>
-          <span className="text-slate-400">Updated 8:39 pm</span>
-        </div>
+  const handleRefresh = () => {
+    setIsRefreshing(true)
+    setTimeout(() => {
+      setIsRefreshing(false)
+    }, 700)
+  }
 
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200/80 font-medium">
-          <span className="material-symbols-outlined text-[15px] text-[#b4833e]">verified</span>
-          <span className="font-semibold text-slate-800">Zeenat Ilyas Campus, Burewala</span>
-        </div>
+  return (
+    <div className="bg-gradient-to-r from-[#061a38] via-[#0a2754] to-[#123e7f] rounded-2xl p-6 sm:p-7 shadow-lg relative overflow-hidden text-white flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+      {/* Decorative subtle ambient curves */}
+      <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-[radial-gradient(ellipse_at_top_right,rgba(37,99,235,0.2),transparent_70%)] pointer-events-none" />
+      <div className="absolute -left-12 -bottom-12 w-48 h-48 rounded-full bg-blue-400/10 blur-2xl pointer-events-none" />
+
+      {/* Left: Heading and Subtitle */}
+      <div className="relative z-10 flex flex-col gap-1.5">
+        <h1 className="font-domine text-2xl sm:text-3xl font-bold tracking-tight text-white">
+          Good evening, Usman
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-300 font-medium">
+          Monday, Nov 23 · Session 2026–2027 · Here is what is happening in your school today
+        </p>
       </div>
 
-      {/* Main Greeting & Filter Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pt-1">
-        <div>
-          <h1 className="font-domine text-2xl lg:text-3xl font-bold text-[#001639] tracking-tight">
-            Good evening, Usman
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Here is what&apos;s happening in your school today.
-          </p>
-        </div>
-
-        {/* Global Time Filter Tabs */}
-        <div className="inline-flex p-1 bg-slate-100/90 rounded-lg border border-slate-200/60 self-start md:self-center">
+      {/* Right: Glassmorphic Capsule Time Filters & Refresh Action */}
+      <div className="relative z-10 flex items-center gap-2 self-start lg:self-center flex-wrap">
+        <div className="inline-flex p-1 bg-white/10 backdrop-blur-md rounded-xl border border-white/15 text-xs shadow-inner">
           {filterTabs.map((tab) => {
             const isActive = activeFilter === tab.id
             return (
@@ -88,10 +56,10 @@ export default function HeaderFilterBar({
                 key={tab.id}
                 type="button"
                 onClick={() => onFilterChange(tab.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-white text-[#001639] shadow-xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+                    ? 'bg-white text-[#001639] shadow-md font-bold'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
               >
                 {tab.label}
@@ -99,6 +67,19 @@ export default function HeaderFilterBar({
             )
           })}
         </div>
+
+        {/* Refresh Reload Button */}
+        <button
+          type="button"
+          onClick={handleRefresh}
+          className={`h-9 w-9 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 text-white flex items-center justify-center transition-all cursor-pointer shadow-2xs ${
+            isRefreshing ? 'animate-spin' : ''
+          }`}
+          title="Refresh Telemetry"
+          aria-label="Refresh Telemetry"
+        >
+          <span className="material-symbols-outlined text-[18px]">sync</span>
+        </button>
       </div>
     </div>
   )
