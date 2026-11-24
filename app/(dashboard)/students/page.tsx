@@ -335,15 +335,12 @@ export default function StudentsPage() {
 
       const errors: string[] = []
       if (!full_name) errors.push('Student Full Name is required')
-      if (!father_name) errors.push('Father Name is required')
-      if (!b_form_number) {
-        errors.push('B-Form is required')
-      } else if (!bFormRegex.test(b_form_number)) {
+      if (b_form_number && !bFormRegex.test(b_form_number)) {
         errors.push('Invalid NADRA B-Form format (expected XXXXX-XXXXXXX-X)')
       }
       const cleanPhone = parent_phone.replace(/[\s-]/g, '')
       if (!parent_phone) {
-        errors.push('Parent phone is required')
+        errors.push('Parent / Guardian phone is required')
       } else if (!phoneRegex.test(cleanPhone)) {
         errors.push('Invalid Pakistani phone (must match +923XXXXXXXXX or 03XXXXXXXXX)')
       }
@@ -449,6 +446,17 @@ export default function StudentsPage() {
   // Handle Create Student
   const handleCreateStudent = (e: React.FormEvent) => {
     e.preventDefault()
+    if (
+      !formData.student_name.trim() ||
+      !formData.guardian_name.trim() ||
+      !formData.contact_phone.trim() ||
+      !formData.class_name ||
+      !formData.section
+    ) {
+      alert('Please fill all required fields: Student Name, Guardian Name, Contact Number, Class, and Section.')
+      return
+    }
+
     const classNum = formData.class_name.replace(/[^0-9]/g, '') || '01'
     const nextRoll = `EAG-${classNum.padStart(2, '0')}-${String(
       students.length + 43
@@ -457,20 +465,20 @@ export default function StudentsPage() {
       id: `s-${Date.now()}`,
       admission_no: `ADM-2026-${String(students.length + 105)}`,
       roll_no: nextRoll,
-      student_name: formData.student_name,
-      b_form: formData.b_form,
-      dob: formData.dob || '2011-01-01',
+      student_name: formData.student_name.trim(),
+      b_form: formData.b_form.trim() || 'N/A',
+      dob: formData.dob || '2015-01-01',
       gender: formData.gender,
-      father_name: formData.father_name,
-      guardian_name: formData.guardian_name || formData.father_name,
-      family_id: formData.family_id || `FAM-${1000 + students.length + 1}`,
-      father_cnic: formData.father_cnic,
-      contact_phone: formData.contact_phone,
-      whatsapp_no: formData.whatsapp_no || formData.contact_phone,
-      address: formData.address || 'Lahore, Pakistan',
+      father_name: formData.father_name.trim() || formData.guardian_name.trim(),
+      guardian_name: formData.guardian_name.trim(),
+      family_id: formData.family_id.trim() || `FAM-${1000 + students.length + 1}`,
+      father_cnic: formData.father_cnic.trim() || 'N/A',
+      contact_phone: formData.contact_phone.trim(),
+      whatsapp_no: formData.whatsapp_no.trim() || formData.contact_phone.trim(),
+      address: formData.address.trim() || 'Burewala / Lahore, Pakistan',
       class_name: formData.class_name,
       section: formData.section || 'Section A',
-      previous_school: formData.previous_school,
+      previous_school: formData.previous_school.trim() || 'N/A',
       status: 'Active',
       admission_date: new Date().toISOString().slice(0, 10),
     }
@@ -1059,77 +1067,17 @@ export default function StudentsPage() {
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                NADRA B-Form Number *
+                Guardian Name *
               </label>
               <input
                 type="text"
                 required
-                value={formData.b_form}
-                onChange={(e) => setFormData({ ...formData, b_form: e.target.value })}
-                placeholder="35201-XXXXXXX-X"
-                className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Father Full Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.father_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, father_name: e.target.value })
-                }
-                placeholder="e.g. Tariq Mehmood Khan"
-                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Gaurdian Name
-              </label>
-              <input
-                type="text"
                 value={formData.guardian_name}
                 onChange={(e) =>
                   setFormData({ ...formData, guardian_name: e.target.value })
                 }
-                placeholder="Defaults to Father Name if blank"
+                placeholder="Father or Guardian Full Name"
                 className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Family ID (Siblings Grouping)
-              </label>
-              <input
-                type="text"
-                value={formData.family_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, family_id: e.target.value })
-                }
-                placeholder="e.g. FAM-1042 (Auto-generated if left empty)"
-                className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Father National CNIC *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.father_cnic}
-                onChange={(e) =>
-                  setFormData({ ...formData, father_cnic: e.target.value })
-                }
-                placeholder="35201-XXXXXXX-X"
-                className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
               />
             </div>
 
@@ -1151,22 +1099,10 @@ export default function StudentsPage() {
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1">
-                Date of Birth *
-              </label>
-              <input
-                type="date"
-                required
-                value={formData.dob}
-                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
-                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
                 Academic Class / Grade *
               </label>
               <select
+                required
                 value={
                   formData.class_name.includes(' - ')
                     ? formData.class_name.split(' - ')[0]
@@ -1193,6 +1129,7 @@ export default function StudentsPage() {
                 Section Assigned *
               </label>
               <select
+                required
                 value={formData.section || 'Section A'}
                 onChange={(e) => {
                   setFormData({
@@ -1211,7 +1148,62 @@ export default function StudentsPage() {
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Gender *</label>
+              <label className="block font-semibold text-slate-700 mb-1">
+                NADRA B-Form Number (Optional)
+              </label>
+              <input
+                type="text"
+                value={formData.b_form}
+                onChange={(e) => setFormData({ ...formData, b_form: e.target.value })}
+                placeholder="35201-XXXXXXX-X (Optional)"
+                className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Father Full Name (Optional)
+              </label>
+              <input
+                type="text"
+                value={formData.father_name}
+                onChange={(e) =>
+                  setFormData({ ...formData, father_name: e.target.value })
+                }
+                placeholder="Defaults to Guardian Name if left blank"
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Father National CNIC (Optional)
+              </label>
+              <input
+                type="text"
+                value={formData.father_cnic}
+                onChange={(e) =>
+                  setFormData({ ...formData, father_cnic: e.target.value })
+                }
+                placeholder="35201-XXXXXXX-X"
+                className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Date of Birth (Optional)
+              </label>
+              <input
+                type="date"
+                value={formData.dob}
+                onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">Gender (Optional)</label>
               <select
                 value={formData.gender}
                 onChange={(e) =>
@@ -1222,6 +1214,21 @@ export default function StudentsPage() {
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Family ID (Siblings Grouping)
+              </label>
+              <input
+                type="text"
+                value={formData.family_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, family_id: e.target.value })
+                }
+                placeholder="e.g. FAM-1042 (Auto-generated if left empty)"
+                className="w-full h-9 px-3 font-mono bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+              />
             </div>
           </div>
 
@@ -1308,8 +1315,13 @@ export default function StudentsPage() {
                     Section: {selectedStudent.section || (selectedStudent.class_name?.includes(' - ') ? selectedStudent.class_name.split(' - ')[1] : 'Standard')}
                   </span>
                 </div>
-                <span className="text-[#b3272c] font-bold mt-1 text-[11px]">
-                  NADRA B-Form: {selectedStudent.b_form}
+                <span className="text-slate-600 font-semibold mt-1 text-[11px]">
+                  NADRA B-Form:{' '}
+                  <span className="font-mono text-[#b3272c] font-bold">
+                    {selectedStudent.b_form && selectedStudent.b_form !== 'N/A'
+                      ? selectedStudent.b_form
+                      : 'Not Provided (Optional)'}
+                  </span>
                 </span>
               </div>
             </div>
@@ -1328,7 +1340,7 @@ export default function StudentsPage() {
                 </span>
               </div>
               <div>
-                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Gaurdian Name:</span>
+                <span className="text-slate-400 block font-semibold text-[10px] uppercase">Guardian Name:</span>
                 <span className="font-bold text-slate-800">
                   {selectedStudent.guardian_name || selectedStudent.father_name}
                 </span>
@@ -1336,32 +1348,40 @@ export default function StudentsPage() {
               <div>
                 <span className="text-slate-400 block font-semibold text-[10px] uppercase">Father Name:</span>
                 <span className="font-bold text-slate-800">
-                  {selectedStudent.father_name}
+                  {selectedStudent.father_name || selectedStudent.guardian_name || 'N/A'}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 block font-semibold text-[10px] uppercase">Father CNIC:</span>
                 <span className="font-mono text-slate-800">
-                  {selectedStudent.father_cnic}
+                  {selectedStudent.father_cnic && selectedStudent.father_cnic !== 'N/A'
+                    ? selectedStudent.father_cnic
+                    : 'Not Provided (Optional)'}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 block font-semibold text-[10px] uppercase">Contact Phone:</span>
-                <span className="font-mono text-slate-800">
+                <span className="font-mono text-slate-800 font-bold text-[#001639]">
                   {selectedStudent.contact_phone}
                 </span>
               </div>
               <div>
                 <span className="text-slate-400 block font-semibold text-[10px] uppercase">Date of Birth:</span>
-                <span className="text-slate-800">{selectedStudent.dob}</span>
+                <span className="text-slate-800">
+                  {selectedStudent.dob && selectedStudent.dob !== 'N/A'
+                    ? selectedStudent.dob
+                    : 'Not Specified (Optional)'}
+                </span>
               </div>
               <div>
                 <span className="text-slate-400 block font-semibold text-[10px] uppercase">Gender:</span>
-                <span className="text-slate-800">{selectedStudent.gender}</span>
+                <span className="text-slate-800">{selectedStudent.gender || 'Not Set'}</span>
               </div>
               <div>
                 <span className="text-slate-400 block font-semibold text-[10px] uppercase">Address:</span>
-                <span className="text-slate-800 truncate block">{selectedStudent.address}</span>
+                <span className="text-slate-800 truncate block">
+                  {selectedStudent.address || 'Not Provided (Optional)'}
+                </span>
               </div>
             </div>
 
@@ -1431,27 +1451,58 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  NADRA B-Form Number *
+                  Guardian Name *
                 </label>
                 <input
                   type="text"
                   required
-                  value={studentToEdit.b_form}
+                  value={studentToEdit.guardian_name || studentToEdit.father_name || ''}
+                  onChange={(e) =>
+                    setStudentToEdit({ ...studentToEdit, guardian_name: e.target.value })
+                  }
+                  placeholder="Father or Guardian Full Name"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Contact Mobile Phone *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={studentToEdit.contact_phone}
+                  onChange={(e) =>
+                    setStudentToEdit({ ...studentToEdit, contact_phone: e.target.value })
+                  }
+                  placeholder="+92 3XX XXXXXXX"
+                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  NADRA B-Form Number (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={studentToEdit.b_form || ''}
                   onChange={(e) =>
                     setStudentToEdit({ ...studentToEdit, b_form: e.target.value })
                   }
-                  placeholder="35201-XXXXXXX-X"
+                  placeholder="35201-XXXXXXX-X (Optional)"
                   className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639] font-mono"
                 />
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Date of Birth
+                  Date of Birth (Optional)
                 </label>
                 <input
                   type="date"
-                  value={studentToEdit.dob}
+                  value={studentToEdit.dob || ''}
                   onChange={(e) =>
                     setStudentToEdit({ ...studentToEdit, dob: e.target.value })
                   }
@@ -1461,7 +1512,7 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Gender
+                  Gender (Optional)
                 </label>
                 <select
                   value={studentToEdit.gender}
@@ -1480,30 +1531,14 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Father Full Name *
+                  Father Full Name (Optional)
                 </label>
                 <input
                   type="text"
-                  required
-                  value={studentToEdit.father_name}
+                  value={studentToEdit.father_name || ''}
                   onChange={(e) =>
                     setStudentToEdit({ ...studentToEdit, father_name: e.target.value })
                   }
-                  className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Gaurdian Name
-                </label>
-                <input
-                  type="text"
-                  value={studentToEdit.guardian_name || ''}
-                  onChange={(e) =>
-                    setStudentToEdit({ ...studentToEdit, guardian_name: e.target.value })
-                  }
-                  placeholder="Defaults to Father Name if blank"
                   className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-[#001639]"
                 />
               </div>
@@ -1525,12 +1560,11 @@ export default function StudentsPage() {
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Father CNIC (13 digits) *
+                  Father CNIC (13 digits) (Optional)
                 </label>
                 <input
                   type="text"
-                  required
-                  value={studentToEdit.father_cnic}
+                  value={studentToEdit.father_cnic || ''}
                   onChange={(e) =>
                     setStudentToEdit({ ...studentToEdit, father_cnic: e.target.value })
                   }

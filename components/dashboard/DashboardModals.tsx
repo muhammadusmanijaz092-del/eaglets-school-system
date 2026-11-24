@@ -121,18 +121,21 @@ export default function DashboardModals({
             <form
               onSubmit={(e) => {
                 e.preventDefault()
-                if (!newStudentName.trim()) return
+                if (!newStudentName.trim() || !newStudentGuardian.trim() || !newStudentPhone.trim() || !newStudentClass || !newStudentSection) {
+                  showToast('Please fill all required fields: Student Name, Guardian Name, Contact Number, Class, and Section.')
+                  return
+                }
                 const roll = String(Math.floor(100 + Math.random() * 900))
                 onAddStudent({
                   id: `st-${Date.now()}`,
-                  name: newStudentName,
+                  name: newStudentName.trim(),
                   roll_no: roll,
                   class_name: newStudentClass,
                   section: newStudentSection,
                   gender: newStudentGender,
                   admission_date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-                  guardian_name: newStudentGuardian || 'Parent / Guardian',
-                  guardian_phone: newStudentPhone,
+                  guardian_name: newStudentGuardian.trim(),
+                  guardian_phone: newStudentPhone.trim(),
                   dues_pkr: 2700,
                   attendance_status: 'Not Marked',
                   status: 'Active',
@@ -155,44 +158,76 @@ export default function DashboardModals({
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">NADRA B-Form Number</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Guardian Name *</label>
                   <input
                     type="text"
-                    placeholder="35201-XXXXXXX-X"
-                    value={newStudentBForm}
-                    onChange={(e) => setNewStudentBForm(e.target.value)}
+                    required
+                    placeholder="Father / Guardian Full Name"
+                    value={newStudentGuardian}
+                    onChange={(e) => setNewStudentGuardian(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Number *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="0300-XXXXXXX"
+                    value={newStudentPhone}
+                    onChange={(e) => setNewStudentPhone(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assign Class</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assign Class *</label>
                   <select
+                    required
                     value={newStudentClass}
                     onChange={(e) => setNewStudentClass(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
                   >
                     <option value="Play Group">Play Group</option>
                     <option value="Nursery">Nursery</option>
                     <option value="Prep">Prep</option>
                     <option value="Grade 1">Grade 1</option>
                     <option value="Grade 2">Grade 2</option>
+                    <option value="Grade 3">Grade 3</option>
+                    <option value="Grade 4">Grade 4</option>
+                    <option value="Grade 5">Grade 5</option>
+                    <option value="Grade 6">Grade 6</option>
+                    <option value="Grade 7">Grade 7</option>
+                    <option value="Grade 8">Grade 8</option>
+                    <option value="Grade 9">Grade 9</option>
                     <option value="Grade 10">Grade 10</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Section</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Section *</label>
                   <select
+                    required
                     value={newStudentSection}
                     onChange={(e) => setNewStudentSection(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium"
                   >
                     <option value="A">Section A</option>
                     <option value="B">Section B</option>
                     <option value="C">Section C</option>
+                    <option value="D">Section D</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gender</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">NADRA B-Form Number (Optional)</label>
+                  <input
+                    type="text"
+                    placeholder="35201-XXXXXXX-X (Optional)"
+                    value={newStudentBForm}
+                    onChange={(e) => setNewStudentBForm(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Gender (Optional)</label>
                   <select
                     value={newStudentGender}
                     onChange={(e) => setNewStudentGender(e.target.value as 'Male' | 'Female')}
@@ -201,26 +236,6 @@ export default function DashboardModals({
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                   </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Guardian Name</label>
-                  <input
-                    type="text"
-                    placeholder="Father / Guardian"
-                    value={newStudentGuardian}
-                    onChange={(e) => setNewStudentGuardian(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Emergency / WhatsApp Contact</label>
-                  <input
-                    type="text"
-                    placeholder="0300-XXXXXXX"
-                    value={newStudentPhone}
-                    onChange={(e) => setNewStudentPhone(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono"
-                  />
                 </div>
               </div>
               <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-2.5">
