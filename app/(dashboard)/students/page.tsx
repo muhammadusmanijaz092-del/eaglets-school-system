@@ -45,6 +45,11 @@ interface ParsedImportRow {
   index: number
   full_name: string
   father_name: string
+  guardian_name?: string
+  family_id?: string
+  roll_no?: string
+  student_id?: string
+  admission_no?: string
   b_form_number: string
   gender: 'Male' | 'Female'
   dob_yyyy_mm_dd: string
@@ -325,6 +330,18 @@ export default function StudentsPage() {
       const parent_phone = String(
         row.parent_phone || row['phone'] || row['contact_phone'] || row['Parent Phone'] || ''
       ).trim()
+      const guardian_name = String(
+        row.guardian_name || row['Guardian Name'] || row['guardian_name'] || father_name
+      ).trim()
+      const family_id = String(
+        row.family_id || row['Family ID'] || row['family_id'] || row['FamilyId'] || ''
+      ).trim()
+      const roll_no = String(
+        row.roll_no || row['Roll No'] || row['roll_no'] || row['Roll Number'] || row['student_id'] || row['Student ID'] || ''
+      ).trim()
+      const admission_no = String(
+        row.admission_no || row['Admission No'] || row['admission_no'] || ''
+      ).trim()
       const address = String(row.address || row['Address'] || 'Lahore, Pakistan').trim()
       const previous_school = String(
         row.previous_school || row['Previous School'] || ''
@@ -349,6 +366,11 @@ export default function StudentsPage() {
         index: idx + 1,
         full_name,
         father_name,
+        guardian_name,
+        family_id,
+        roll_no,
+        student_id: roll_no,
+        admission_no,
         b_form_number,
         gender,
         dob_yyyy_mm_dd,
@@ -393,28 +415,36 @@ export default function StudentsPage() {
     if (validRows.length === 0) return
 
     const newEnrolled: StudentItem[] = validRows.map((row, i) => {
-      const classNum = row.class_grade.includes('9') ? '09' : '10'
-      const rollNumber = `EAG-${classNum}-${String(students.length + 50 + i).padStart(3, '0')}`
-      const admissionNo = `ADM-2026-${String(students.length + 120 + i)}`
+      const classNum = row.class_grade.replace(/[^0-9]/g, '') || '01'
+      const rollNumber =
+        row.roll_no ||
+        row.student_id ||
+        `EAG-${classNum.padStart(2, '0')}-${String(students.length + 50 + i).padStart(3, '0')}`
+      const admissionNo =
+        row.admission_no ||
+        `ADM-2026-${String(students.length + 120 + i)}`
+      const familyId =
+        row.family_id ||
+        `FAM-${1000 + students.length + i + 1}`
 
       return {
         id: `s-bulk-${Date.now()}-${i}`,
         admission_no: admissionNo,
         roll_no: rollNumber,
         student_name: row.full_name,
-        b_form: row.b_form_number,
-        dob: row.dob_yyyy_mm_dd || '2011-01-01',
+        b_form: row.b_form_number || 'N/A',
+        dob: row.dob_yyyy_mm_dd || '2015-01-01',
         gender: row.gender,
-        father_name: row.father_name,
+        father_name: row.father_name || row.guardian_name || 'N/A',
+        guardian_name: row.guardian_name || row.father_name || 'Parent / Guardian',
+        family_id: familyId,
         father_cnic: '35201-XXXXXXX-X',
         contact_phone: row.parent_phone,
         whatsapp_no: row.parent_phone,
-        address: row.address || 'Lahore, Pakistan',
+        address: row.address || 'Burewala / Lahore, Pakistan',
         class_name: row.class_grade,
         section: row.section || 'Section A',
-        previous_school: row.previous_school,
-        family_id: `FAM-${1000 + students.length + i + 1}`,
-        guardian_name: row.father_name,
+        previous_school: row.previous_school || 'N/A',
         status: 'Active',
         admission_date: new Date().toISOString().slice(0, 10),
       }
